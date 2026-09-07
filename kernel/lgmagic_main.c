@@ -32,7 +32,7 @@
 #ifdef CONFIG_X86
 #include <asm/fpu/api.h>
 #elif defined(CONFIG_ARM64)
-#include <linux/neon.h>
+#include <asm/neon.h>
 #endif
 
 static inline void lgmagic_fpu_begin(void)
