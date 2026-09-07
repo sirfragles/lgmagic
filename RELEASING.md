@@ -39,7 +39,7 @@ are yours to write by hand:
 - `debian/changelog` - a new top entry (the sync step already set its
   version line), date in RFC 5322 format as in the file.
 - `rpm/lgmagic.spec` under `%changelog` - one line per release:
-  `* Mon Sep 07 2026 Ilya Chelyadin <sirfragles@users.noreply.github.com> - X.Y.Z-1`
+  `* Mon Sep 07 2026 sirfragles <sirfragles@users.noreply.github.com> - X.Y.Z-1`
   (the weekday must be the real weekday of that date or rpmbuild
   refuses the spec).
 
