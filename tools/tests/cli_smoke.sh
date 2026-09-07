@@ -46,6 +46,12 @@ TMP=${TMPDIR:-/tmp}/lgmagic-cli-smoke-$$
 mkdir -p "$TMP/home"
 trap 'rm -rf "$TMP"' 0 1 2 3 15
 
+# Hermetic on an installed host: /etc/lgmagic/config.toml must never
+# leak into the effective-config tests (the system path resolves under
+# this root; the dir itself is empty and never written to).
+mkdir -p "$TMP/cfgroot"
+export LGMAGIC_CONFIG_ROOT="$TMP/cfgroot"
+
 ok=0
 bad=0
 

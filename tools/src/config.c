@@ -20,8 +20,22 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
-#define CFG_SYSTEM_PATH "/etc/lgmagic/config.toml"
+#define CFG_SYSTEM_DIR "/etc/lgmagic"
 #define CFG_USER_DIR "/.config/lgmagic"
+
+/* System config path: /etc/lgmagic/config.toml, or <root>/config.toml when
+ * LGMAGIC_CONFIG_ROOT is set.  Same resolution as cmd_config_root() in
+ * cmd_bus.c, duplicated locally because config.c also links into lgmagicd
+ * and the unit tests, which do not link cmd_bus.c.  Test suites point the
+ * root at a scratch dir so an installed host's system config never leaks
+ * into them. */
+static void config_system_path(char *buf, size_t bufsz)
+{
+	const char *root = getenv("LGMAGIC_CONFIG_ROOT");
+
+	snprintf(buf, bufsz, "%s/config.toml",
+		 (root && root[0]) ? root : CFG_SYSTEM_DIR);
+}
 
 struct config *g_cfg;
 const char *g_tool_version = LGMAGIC_VERSION;
@@ -207,16 +221,16 @@ struct config *config_load(const char *extra_path)
 {
 	struct config *cfg = calloc(1, sizeof(*cfg));
 	const char *home;
+	char path[4096];
 
 	if (!cfg)
 		return NULL;
 	explicit_mask = 0;
 	set_defaults(cfg);
-	merge_file(cfg, CFG_SYSTEM_PATH);
+	config_system_path(path, sizeof(path));
+	merge_file(cfg, path);
 	home = getenv("HOME");
 	if (home) {
-		char path[4096];
-
 		snprintf(path, sizeof(path), "%s%s/config.toml", home,
 			 CFG_USER_DIR);
 		merge_file(cfg, path);
@@ -475,8 +489,10 @@ void config_print(const struct config *cfg)
 void config_print_paths(void)
 {
 	const char *home = getenv("HOME");
+	char syspath[4096];
 
-	printf("system: %s\n", CFG_SYSTEM_PATH);
+	config_system_path(syspath, sizeof(syspath));
+	printf("system: %s\n", syspath);
 	printf("user:   %s%s/config.toml\n", home ? home : "$HOME",
 	       CFG_USER_DIR);
 }

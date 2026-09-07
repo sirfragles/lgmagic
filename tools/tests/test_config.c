@@ -40,7 +40,11 @@ static int make_scratch(void)
 	if (!mkdtemp(tmpl))
 		return -1;
 	snprintf(scratch, sizeof(scratch), "%s", tmpl);
-	return setenv("HOME", scratch, 1) == 0 ? 0 : -1;
+	if (setenv("HOME", scratch, 1) != 0)
+		return -1;
+	/* Point the system config root at the scratch dir as well: on an
+	 * installed host /etc/lgmagic/config.toml would leak into the tests. */
+	return setenv("LGMAGIC_CONFIG_ROOT", scratch, 1) == 0 ? 0 : -1;
 }
 
 static void test_defaults(void)
