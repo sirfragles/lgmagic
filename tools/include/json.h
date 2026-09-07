@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- * json.h - minimal JSON parser/writer for the lg-magic tools (portable).
+ * json.h - minimal JSON parser/writer for the lgmagic tools (portable).
  *
  * Parser: recursive descent, numbers via strtod, depth limit 32, no
  * \uXXXX escapes (rejected with an error that reports a byte offset).

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- * cmd_profile.c - `lg-magic profile list|show|set`.
+ * cmd_profile.c - `lgmagic profile list|show|set`.
  *
  * list/show read the world-readable files directly (no daemon, no
  * polkit needed): devices.d/<MAC>.toml + the active-profile overlay in
@@ -17,9 +17,9 @@
 
 static int usage(FILE *out)
 {
-	fputs("Usage: lg-magic profile list\n"
-	      "       lg-magic profile show [MAC]\n"
-	      "       lg-magic profile set MAC PROFILE\n", out);
+	fputs("Usage: lgmagic profile list\n"
+	      "       lgmagic profile show [MAC]\n"
+	      "       lgmagic profile set MAC PROFILE\n", out);
 	return out == stderr;
 }
 
@@ -38,7 +38,7 @@ static int do_list(struct dbus_client *c)
 		size_t j;
 
 		if (cmd_load_device(out->items[i], &dc, err, sizeof(err)) < 0) {
-			fprintf(stderr, "lg-magic: %s: %s\n", out->items[i],
+			fprintf(stderr, "lgmagic: %s: %s\n", out->items[i],
 				err);
 			continue;
 		}
@@ -81,7 +81,7 @@ static int do_show(struct dbus_client *c, const char *mac)
 
 	(void)c;	/* status comes from the world-readable file */
 	if (cmd_load_device(mac, &dc, err, sizeof(err)) < 0) {
-		fprintf(stderr, "lg-magic: %s: %s\n", mac, err);
+		fprintf(stderr, "lgmagic: %s: %s\n", mac, err);
 		return -1;
 	}
 	printf("device: %s\n", mac);

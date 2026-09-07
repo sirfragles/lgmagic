@@ -4,11 +4,11 @@ set -e
 # Best-effort, like the postinst and the other package formats.
 if [ "$1" = remove ] && [ -x /usr/sbin/dkms ]; then
     # Still installed while the prerm runs, so the query works.
-    V=$(dpkg-query -W -f='${Version}' lg-magic-dkms 2>/dev/null | cut -d- -f1)
-    [ -n "$V" ] || V=2.0
-    dkms remove -m lg-magic -v "$V" --all || true
+    V=$(dpkg-query -W -f='${Version}' lgmagic-dkms 2>/dev/null | cut -d- -f1)
+    [ -n "$V" ] || V=0.0.1
+    dkms remove -m lgmagic -v "$V" --all || true
 fi
 
-modprobe -r lg_magic 2>/dev/null || true
+modprobe -r lgmagic 2>/dev/null || true
 
 #DEBHELPER#

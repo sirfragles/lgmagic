@@ -13,7 +13,7 @@ modules.order
 *.bin
 
 # Userspace tools build artifacts
-tools/lg-magic
+tools/lgmagic
 tools/tests/test_*
 !tools/tests/*.c
 !tools/tests/*.h

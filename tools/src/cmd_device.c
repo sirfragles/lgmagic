@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- * cmd_device.c - `lg-magic device list|status` (read-only, no polkit).
+ * cmd_device.c - `lgmagic device list|status` (read-only, no polkit).
  *
  * Both subcommands go through the daemon: list renders ListDevices,
  * status renders GetStatus for one device (the MAC argument is
@@ -15,8 +15,8 @@
 
 static int usage(FILE *out)
 {
-	fputs("Usage: lg-magic device list\n"
-	      "       lg-magic device status [MAC]\n", out);
+	fputs("Usage: lgmagic device list\n"
+	      "       lgmagic device status [MAC]\n", out);
 	return out == stderr;
 }
 

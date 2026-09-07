@@ -397,7 +397,7 @@ static void test_load_file(void)
 	}
 	remove(path);
 
-	CHECK(json_load_file("/nonexistent/lg-magic-nope.json", &err, &off)
+	CHECK(json_load_file("/nonexistent/lgmagic-nope.json", &err, &off)
 	      == NULL, "json_load_file fails on a missing file");
 }
 

@@ -1,10 +1,10 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- * daemon_config.h - lg-magicd configuration (Linux only).
+ * daemon_config.h - lgmagicd configuration (Linux only).
  *
  * Two roots, both overridable for tests:
- *   config_root (/etc/lg-magic):     config.toml + devices.d/<MAC>.toml
- *   state_dir   (/var/lib/lg-magic): state.toml + <MAC>/calibration.json
+ *   config_root (/etc/lgmagic):     config.toml + devices.d/<MAC>.toml
+ *   state_dir   (/var/lib/lgmagic): state.toml + <MAC>/calibration.json
  *
  * Per-remote precedence: built-in defaults < devices.d/<MAC>.toml < the
  * active-profile override in state.toml.  The daemon never reads

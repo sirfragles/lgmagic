@@ -6,13 +6,13 @@ set -e
 # the unsigned module) must never get a broken package transaction. The
 # same policy as the rpm spec and the Arch .install file.
 if [ "$1" = configure ] && [ -x /usr/sbin/dkms ]; then
-    # The DKMS module version follows the package version (2.0.1-1 ->
-    # 2.0.1); read it instead of hardcoding it in the maintainer script.
-    V=$(dpkg-query -W -f='${Version}' lg-magic-dkms 2>/dev/null | cut -d- -f1)
-    [ -n "$V" ] || V=2.0
-    dkms add -m lg-magic -v "$V" || true
-    dkms build -m lg-magic -v "$V" || true
-    dkms install -m lg-magic -v "$V" || true
+    # The DKMS module version follows the package version (0.0.1-1 ->
+    # 0.0.1); read it instead of hardcoding it in the maintainer script.
+    V=$(dpkg-query -W -f='${Version}' lgmagic-dkms 2>/dev/null | cut -d- -f1)
+    [ -n "$V" ] || V=0.0.1
+    dkms add -m lgmagic -v "$V" || true
+    dkms build -m lgmagic -v "$V" || true
+    dkms install -m lgmagic -v "$V" || true
 fi
 
 #DEBHELPER#
@@ -25,8 +25,8 @@ if [ -x /usr/bin/udevadm ]; then
 fi
 
 # Secure Boot may reject the unsigned module - never break the install.
-modprobe lg_magic || true
+modprobe lgmagic || true
 
-echo "lg-magic: driver installed."
-echo "Run 'sudo lg-magic setup' to pick the input mode, configure the"
+echo "lgmagic: driver installed."
+echo "Run 'sudo lgmagic setup' to pick the input mode, configure the"
 echo "module and calibrate the remote."

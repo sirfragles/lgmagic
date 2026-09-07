@@ -1,11 +1,11 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- * daemon_devices.h - lg-magicd device discovery and hotplug (Linux only).
+ * daemon_devices.h - lgmagicd device discovery and hotplug (Linux only).
  *
  * Scans /dev/input (name + id + sysfs uniq), pairs each "LG Magic
  * Remote" keyboard with its IMU (pairing_match), opens the keyboard
  * with EVIOCGRAB (best effort) and the IMU without a grab (so
- * `lg-magic imu --csv/--mouse` keeps working in parallel).
+ * `lgmagic imu --csv/--mouse` keeps working in parallel).
  *
  * Hotplug: inotify on /dev/input with a 200 ms debounce, plus a slow
  * polling fallback rescan for environments without inotify/udev.
@@ -23,7 +23,7 @@
 #include "evdev.h"
 
 /* One discovered remote.  Each remote owns its own pair of virtual
- * devices ("lg-magicd keyboard <identity>" / "lg-magicd mouse
+ * devices ("lgmagicd keyboard <identity>" / "lgmagicd mouse
  * <identity>") so two remotes can never mix held-key state or
  * profiles on a shared output; the names carry the identity (BT MAC,
  * or "unknown" without a sysfs uniq) so desktops can tell them apart.

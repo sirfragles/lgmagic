@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- * cmd_analyze.c - `lg-magic analyze` subcommand (scripts/lg_magic.py).
+ * cmd_analyze.c - `lgmagic analyze` subcommand (scripts/lgmagic.py).
  *
  * Decodes HIDRAW reports from the LG Magic Remote and prints them in the
  * same format as the Python analyzer. The device is auto-detected by
@@ -15,7 +15,7 @@
 
 static void usage(FILE *out)
 {
-	fputs("Usage: lg-magic analyze [--device /dev/hidrawN] [--list]\n"
+	fputs("Usage: lgmagic analyze [--device /dev/hidrawN] [--list]\n"
 	      "\n"
 	      "  --device PATH   use this hidraw device instead of auto-detection\n"
 	      "  --list          list the detected LG Magic Remote devices\n", out);
@@ -41,7 +41,7 @@ int cmd_analyze(int argc, char **argv)
 		} else if (strncmp(argv[i], "--device=", 9) == 0) {
 			device = argv[i] + 9;
 		} else {
-			fprintf(stderr, "lg-magic analyze: unexpected "
+			fprintf(stderr, "lgmagic analyze: unexpected "
 				"argument '%s'\n", argv[i]);
 			usage(stderr);
 			return 1;
@@ -55,7 +55,7 @@ int cmd_analyze(int argc, char **argv)
 		snprintf(path, sizeof(path), "%s", device);
 	} else {
 		if (hidraw_find_remote(path, sizeof(path), err, sizeof(err)) < 0) {
-			fprintf(stderr, "lg-magic: %s\n", err);
+			fprintf(stderr, "lgmagic: %s\n", err);
 			return 1;
 		}
 		printf("Using device: %s\n", path);

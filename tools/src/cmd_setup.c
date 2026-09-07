@@ -1,20 +1,20 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- * cmd_setup.c - `lg-magic setup`, the interactive configuration and
+ * cmd_setup.c - `lgmagic setup`, the interactive configuration and
  * calibration wizard. After it finishes, the remote works end to end.
  *
  * Steps:  1. environment (root, module, devices, uinput)
- *         2. input mode (daemon - raw_only=1 + lg-magicd - vs the
+ *         2. input mode (daemon - raw_only=1 + lgmagicd - vs the
  *            kernel airmouse - raw_only=0 airmouse=1, the v1 behaviour)
- *         3. module parameters (/etc/modprobe.d/lg-magic.conf + reload;
- *            daemon mode enables lg-magicd best-effort)
+ *         3. module parameters (/etc/modprobe.d/lgmagic.conf + reload;
+ *            daemon mode enables lgmagicd best-effort)
  *         4. accelerometer calibration (recording + Levenberg-Marquardt)
  *         5. gyroscope calibration (recording + mean bias)
  *         6. calibration JSON (gyro scale / alpha / mouse_k questions)
  *         7. firmware blob to /lib/firmware - LEGACY ONLY (raw_only=0;
  *            skipped in daemon mode: one calibration source per mode)
- *         8. per-device state (/var/lib/lg-magic/<MAC>/calibration.json,
- *            /etc/lg-magic/devices.d/<MAC>.toml) + daemon Reload()
+ *         8. per-device state (/var/lib/lgmagic/<MAC>/calibration.json,
+ *            /etc/lgmagic/devices.d/<MAC>.toml) + daemon Reload()
  *         9. module reload + dmesg verification
  *        10. airmouse test (daemon status with a standalone fallback)
  *        11. user config (SUDO_USER/HOME aware)
@@ -25,7 +25,7 @@
  * gates unprivileged writes only; sudo already authenticated), then
  * asks the daemon to reload via the D-Bus client.
  *
- * Note on ordering: the IMU evdev node only exists while lg_magic runs
+ * Note on ordering: the IMU evdev node only exists while lgmagic runs
  * with imu_evdev=1 (the module default is 0), so the parameters are
  * written and the module is (re)loaded before the device is reopened
  * for the calibration recordings.
@@ -53,15 +53,15 @@
 #include <time.h>
 #include <unistd.h>
 
-#define MODULE_NAME "lg_magic"
-#define CALIB_DIR "/etc/lg-magic"
-#define CALIB_JSON "/etc/lg-magic/calib.json"
+#define MODULE_NAME "lgmagic"
+#define CALIB_DIR "/etc/lgmagic"
+#define CALIB_JSON "/etc/lgmagic/calib.json"
 #define FW_DIR "/lib/firmware"
-#define FW_GENERIC "lg_magic_calib.bin"
+#define FW_GENERIC "lgmagic_calib.bin"
 /* The daemon state: per-device calibration + the daemon's own default
  * (daemon_config_calib_path). */
-#define STATE_DIR "/var/lib/lg-magic"
-#define DEVICES_D_DIR "/etc/lg-magic/devices.d"
+#define STATE_DIR "/var/lib/lgmagic"
+#define DEVICES_D_DIR "/etc/lgmagic/devices.d"
 /* gcc's -Wformat-truncation bounds a %s source by its declared array
  * size, so every buffer is sized beyond the capacities that flow into
  * it: state_dir holds STATE_DIR + "/" + MAC + NUL (35), calib_path adds
@@ -175,7 +175,7 @@ static long record_samples(struct evdev_imu *dev, double seconds,
 
 	s = malloc(cap * sizeof(*s));
 	if (!s) {
-		fprintf(stderr, "lg-magic: out of memory\n");
+		fprintf(stderr, "lgmagic: out of memory\n");
 		return -1;
 	}
 	for (;;) {
@@ -187,7 +187,7 @@ static long record_samples(struct evdev_imu *dev, double seconds,
 		if (rv < 0) {
 			if (g_stop)
 				break;
-			fprintf(stderr, "lg-magic: %s\n", err);
+			fprintf(stderr, "lgmagic: %s\n", err);
 			free(s);
 			return -1;
 		}
@@ -201,7 +201,7 @@ static long record_samples(struct evdev_imu *dev, double seconds,
 			cap *= 2;
 			s = realloc(s, cap * sizeof(*s));
 			if (!s) {
-				fprintf(stderr, "lg-magic: out of memory\n");
+				fprintf(stderr, "lgmagic: out of memory\n");
 				return -1;
 			}
 		}
@@ -241,13 +241,13 @@ static int step_environment(struct evdev_imu *dev, char *hidraw_path,
 
 	printf("\n=== Step 1: environment ===\n");
 	if (geteuid() != 0) {
-		fprintf(stderr, "lg-magic: setup needs root - the module "
+		fprintf(stderr, "lgmagic: setup needs root - the module "
 			"parameters, /etc/modprobe.d and /lib/firmware are "
-			"system-wide.\nRun it as: sudo lg-magic setup\n");
+			"system-wide.\nRun it as: sudo lgmagic setup\n");
 		return -1;
 	}
 	if (!module_is_loaded(MODULE_NAME)) {
-		printf("Loading the lg_magic module...\n");
+		printf("Loading the lgmagic module...\n");
 		if (module_load(MODULE_NAME, err, sizeof(err)) < 0) {
 			fprintf(stderr, "Warning: %s\n", err);
 			fprintf(stderr, "Check the DKMS installation and Secure "
@@ -256,17 +256,17 @@ static int step_environment(struct evdev_imu *dev, char *hidraw_path,
 				"work until this is fixed.\n");
 		}
 	} else {
-		printf("Kernel module lg_magic: loaded.\n");
+		printf("Kernel module lgmagic: loaded.\n");
 	}
 
 	/* The IMU evdev node only exists with imu_evdev=1 (the default is
 	 * 0); step 2 fixes the parameters if it is missing. */
 	if (evdev_find_imu(dev, g_cfg->imu_device, err, sizeof(err)) < 0) {
-		fprintf(stderr, "lg-magic: %s\n", err);
-		fprintf(stderr, "The lg_magic module must be loaded with "
+		fprintf(stderr, "lgmagic: %s\n", err);
+		fprintf(stderr, "The lgmagic module must be loaded with "
 			"imu_evdev=1 for the IMU to be exposed. After this "
 			"wizard has written the parameter file:\n"
-			"  unplug the receiver, run 'sudo rmmod lg_magic', "
+			"  unplug the receiver, run 'sudo rmmod lgmagic', "
 			"plug it back in.\n");
 		return -1;
 	}
@@ -277,7 +277,7 @@ static int step_environment(struct evdev_imu *dev, char *hidraw_path,
 		snprintf(hidraw_path, hidraw_sz, "%s", g_cfg->hidraw_device);
 	} else if (hidraw_find_remote(hidraw_path, hidraw_sz, err,
 				      sizeof(err)) < 0) {
-		fprintf(stderr, "lg-magic: %s\n", err);
+		fprintf(stderr, "lgmagic: %s\n", err);
 		fprintf(stderr, "Is the remote paired and switched on?\n");
 		return -1;
 	}
@@ -312,12 +312,12 @@ static int sanitize_mac(const char *uniq, char *out, size_t outsz)
 	return 0;
 }
 
-/* Returns 1 for the daemon mode (the v2 default: raw_only=1, lg-magicd
+/* Returns 1 for the daemon mode (the default: raw_only=1, lgmagicd
  * takes over the input), 0 for the v1 kernel airmouse fallback. */
 static int ask_mode(void)
 {
 	printf("\n=== Step 2: input mode ===\n");
-	printf("v2 drives the remote through the lg-magicd daemon: one virtual\n"
+	printf("v2 drives the remote through the lgmagicd daemon: one virtual\n"
 	       "mouse and keyboard, profiles, per-device calibration and\n"
 	       "button mapping. The kernel then only decodes the raw reports\n"
 	       "(raw_only=1). The v1 kernel airmouse remains as a fallback.\n");
@@ -339,7 +339,7 @@ static void step_module_params(int daemon_mode)
 	char err[256];
 
 	printf("\n=== Step 3: module parameters ===\n");
-	printf("Writing /etc/modprobe.d/lg-magic.conf (%s)...\n", params);
+	printf("Writing /etc/modprobe.d/lgmagic.conf (%s)...\n", params);
 	if (module_write_conf(MODULE_NAME, params, err, sizeof(err)) < 0) {
 		fprintf(stderr, "Warning: %s\n", err);
 		return;
@@ -349,7 +349,7 @@ static void step_module_params(int daemon_mode)
 		fprintf(stderr, "Note: %s\n", err);
 		fprintf(stderr, "The module is in use by the connected remote. "
 			"The new parameters will apply after:\n"
-			"  unplug the receiver, run 'sudo rmmod lg_magic', "
+			"  unplug the receiver, run 'sudo rmmod lgmagic', "
 			"plug it back in (or reboot).\n");
 	} else {
 		printf("Module reloaded with the new parameters.\n");
@@ -359,13 +359,13 @@ static void step_module_params(int daemon_mode)
 		 * On a v1 -> v2 upgrade the wizard may run before the daemon
 		 * package - systemctl then fails and the message says so. */
 		if (access("/usr/bin/systemctl", X_OK) == 0) {
-			printf("Enabling lg-magicd...\n");
-			if (system("systemctl enable --now lg-magicd "
+			printf("Enabling lgmagicd...\n");
+			if (system("systemctl enable --now lgmagicd "
 				   ">/dev/null 2>&1") == 0)
-				printf("lg-magicd enabled and started.\n");
+				printf("lgmagicd enabled and started.\n");
 			else
 				fprintf(stderr, "Warning: 'systemctl enable --now "
-					"lg-magicd' failed - start it manually "
+					"lgmagicd' failed - start it manually "
 					"after the install.\n");
 		}
 	}
@@ -450,7 +450,7 @@ static int step_accel_calib(struct evdev_imu *dev, struct calib *c,
 		a = malloc((size_t)n * sizeof(*a));
 		if (!a) {
 			free(s);
-			fprintf(stderr, "lg-magic: out of memory\n");
+			fprintf(stderr, "lgmagic: out of memory\n");
 			return -1;
 		}
 		for (i = 0; i < n; i++)
@@ -471,7 +471,7 @@ static int step_accel_calib(struct evdev_imu *dev, struct calib *c,
 			break;
 	}
 	fprintf(stderr, "Warning: accepting a poor accelerometer calibration; "
-		"re-run 'sudo lg-magic setup' to retry.\n");
+		"re-run 'sudo lgmagic setup' to retry.\n");
 	return 0;
 }
 
@@ -498,7 +498,7 @@ static int step_gyro_calib(struct evdev_imu *dev, struct calib *c,
 		return -1;
 	}
 	if (n == 0) {
-		fprintf(stderr, "lg-magic: no samples recorded\n");
+		fprintf(stderr, "lgmagic: no samples recorded\n");
 		free(s);
 		return -1;
 	}
@@ -552,7 +552,7 @@ static void ask_tuning(struct calib *c, double *alpha, double *mouse_k)
 }
 
 static int write_blob_file(const char *name,
-			   const struct lg_magic_airmouse_calib *blob,
+			   const struct lgmagic_airmouse_calib *blob,
 			   char *err, size_t errsz)
 {
 	char path[256];
@@ -577,13 +577,13 @@ static int write_blob_file(const char *name,
 static int step_blob(const struct calib *c, double alpha, double mouse_k,
 		     const char *uniq)
 {
-	struct lg_magic_airmouse_calib blob;
+	struct lgmagic_airmouse_calib blob;
 	char fname[128], mac[18];
 	char err[256];
 
 	printf("\n=== Step 7: firmware blob ===\n");
 	if (mkdir(FW_DIR, 0755) < 0 && errno != EEXIST) {
-		fprintf(stderr, "lg-magic: cannot create %s: %s\n", FW_DIR,
+		fprintf(stderr, "lgmagic: cannot create %s: %s\n", FW_DIR,
 			strerror(errno));
 		return -1;
 	}
@@ -595,9 +595,9 @@ static int step_blob(const struct calib *c, double alpha, double mouse_k,
 
 	if (uniq[0] && strlen(uniq) == 17) {
 		sanitize_mac(uniq, mac, sizeof(mac));
-		snprintf(fname, sizeof(fname), "lg_magic_calib_%s.bin", mac);
+		snprintf(fname, sizeof(fname), "lgmagic_calib_%s.bin", mac);
 		if (write_blob_file(fname, &blob, err, sizeof(err)) < 0) {
-			fprintf(stderr, "lg-magic: %s\n", err);
+			fprintf(stderr, "lgmagic: %s\n", err);
 			return -1;
 		}
 	} else if (uniq[0]) {
@@ -608,7 +608,7 @@ static int step_blob(const struct calib *c, double alpha, double mouse_k,
 		       "blob.\n");
 	}
 	if (write_blob_file(FW_GENERIC, &blob, err, sizeof(err)) < 0) {
-		fprintf(stderr, "lg-magic: %s\n", err);
+		fprintf(stderr, "lgmagic: %s\n", err);
 		return -1;
 	}
 	return 0;
@@ -619,8 +619,8 @@ static int step_blob(const struct calib *c, double alpha, double mouse_k,
 /* ------------------------------------------------------------------ */
 
 /* The parent directory of the calibration path (the recordings are
- * written next to the authoritative file: /var/lib/lg-magic/<MAC>/ in
- * daemon mode, /etc/lg-magic/ in kernel mode - /etc must not hold
+ * written next to the authoritative file: /var/lib/lgmagic/<MAC>/ in
+ * daemon mode, /etc/lgmagic/ in kernel mode - /etc must not hold
  * calibration data in daemon mode). */
 static void dir_of(const char *path, char *out, size_t outsz)
 {
@@ -643,7 +643,7 @@ static void dir_of(const char *path, char *out, size_t outsz)
 }
 
 /* mkdir -p.  The wizard only ever creates under its own roots
- * (/var/lib/lg-magic/..., /etc/lg-magic) - a few components deep. */
+ * (/var/lib/lgmagic/..., /etc/lgmagic) - a few components deep. */
 static int mkdir_p(const char *dir)
 {
 	char path[STATE_PATH_MAX], *p;
@@ -679,7 +679,7 @@ static int step_daemon_state(const struct calib *c, int daemon_mode,
 	 * the state dir above it; the latter is also created by tmpfiles,
 	 * this keeps the wizard self-sufficient). */
 	if (mkdir(STATE_DIR, 0755) < 0 && errno != EEXIST) {
-		fprintf(stderr, "lg-magic: cannot create %s: %s\n", STATE_DIR,
+		fprintf(stderr, "lgmagic: cannot create %s: %s\n", STATE_DIR,
 			strerror(errno));
 		return -1;
 	}
@@ -688,12 +688,12 @@ static int step_daemon_state(const struct calib *c, int daemon_mode,
 	if (slash)
 		*slash = '\0';
 	if (mkdir(dir, 0755) < 0 && errno != EEXIST) {
-		fprintf(stderr, "lg-magic: cannot create %s: %s\n", dir,
+		fprintf(stderr, "lgmagic: cannot create %s: %s\n", dir,
 			strerror(errno));
 		return -1;
 	}
 	if (calib_save_json(c, calib_path, err, sizeof(err)) < 0) {
-		fprintf(stderr, "lg-magic: %s\n", err);
+		fprintf(stderr, "lgmagic: %s\n", err);
 		return -1;
 	}
 	printf("Calibration saved to %s\n", calib_path);
@@ -702,23 +702,23 @@ static int step_daemon_state(const struct calib *c, int daemon_mode,
 		FILE *f;
 
 		if (mkdir(DEVICES_D_DIR, 0755) < 0 && errno != EEXIST) {
-			fprintf(stderr, "lg-magic: cannot create %s: %s\n",
+			fprintf(stderr, "lgmagic: cannot create %s: %s\n",
 				DEVICES_D_DIR, strerror(errno));
 			return -1;
 		}
 		f = fopen(toml_path, "w");
 		if (!f) {
-			fprintf(stderr, "lg-magic: cannot write %s: %s\n",
+			fprintf(stderr, "lgmagic: cannot write %s: %s\n",
 				toml_path, strerror(errno));
 			return -1;
 		}
-		fprintf(f, "# Written by 'lg-magic setup'.\n"
+		fprintf(f, "# Written by 'lgmagic setup'.\n"
 			"profile = \"default\"\n"
 			"calib = \"%s\"\n"
 			"airmouse = %s\n", calib_path,
 			daemon_mode ? "true" : "false");
 		if (fclose(f) != 0) {
-			fprintf(stderr, "lg-magic: write error on %s\n",
+			fprintf(stderr, "lgmagic: write error on %s\n",
 				toml_path);
 			return -1;
 		}
@@ -767,7 +767,7 @@ static void step_reload_verify(void)
 		fprintf(stderr, "Note: %s\n", err);
 		fprintf(stderr, "The module is in use by the connected remote. "
 			"The calibration blob will be picked up after:\n"
-			"  unplug the receiver, run 'sudo rmmod lg_magic', "
+			"  unplug the receiver, run 'sudo rmmod lgmagic', "
 			"plug it back in (or reboot).\n");
 		return;
 	}
@@ -797,7 +797,7 @@ static void step_reload_verify(void)
  * remote, the pointer already follows and there is nothing to test
  * standalone. Without a reachable daemon the v1 standalone uinput test
  * is the fallback (the IMU evdev is never grabbed, so it works while
- * lg-magicd runs). */
+ * lgmagicd runs). */
 static void step_mouse_test(struct evdev_imu *dev, const struct calib *c,
 			    int daemon_mode)
 {
@@ -809,7 +809,7 @@ static void step_mouse_test(struct evdev_imu *dev, const struct calib *c,
 	printf("\n=== Step 10: airmouse test ===\n");
 	if (non_interactive) {
 		printf("Skipped (--non-interactive). Try it later with "
-		       "'lg-magic imu --mouse'.\n");
+		       "'lgmagic imu --mouse'.\n");
 		return;
 	}
 	if (daemon_mode) {
@@ -827,7 +827,7 @@ static void step_mouse_test(struct evdev_imu *dev, const struct calib *c,
 			if (rc == 0) {
 				dbus_disconnect(&cli);
 				dbus_value_free(out);
-				printf("lg-magicd is running and driving the "
+				printf("lgmagicd is running and driving the "
 				       "remote - move it, the pointer should "
 				       "follow. No need for Ctrl+C; the test "
 				       "continues as you use the remote.\n");
@@ -840,7 +840,7 @@ static void step_mouse_test(struct evdev_imu *dev, const struct calib *c,
 					err_name ? err_name : "no error name");
 			dbus_disconnect(&cli);
 		}
-		printf("lg-magicd is not reachable - falling back to the "
+		printf("lgmagicd is not reachable - falling back to the "
 		       "standalone airmouse test.\n");
 	}
 	if (!ask_yn("Run a quick airmouse test", 1))
@@ -848,12 +848,12 @@ static void step_mouse_test(struct evdev_imu *dev, const struct calib *c,
 	/* The reload in step 2 may have recreated the evdev node. */
 	evdev_close(dev);
 	if (evdev_find_imu(dev, g_cfg->imu_device, err, sizeof(err)) < 0) {
-		fprintf(stderr, "lg-magic: %s\n", err);
+		fprintf(stderr, "lgmagic: %s\n", err);
 		return;
 	}
 	ufd = uinput_open(err, sizeof(err));
 	if (ufd < 0) {
-		fprintf(stderr, "lg-magic: %s\n", err);
+		fprintf(stderr, "lgmagic: %s\n", err);
 		evdev_close(dev);
 		return;
 	}
@@ -871,7 +871,7 @@ static void step_mouse_test(struct evdev_imu *dev, const struct calib *c,
 		if (rv < 0) {
 			if (g_stop)
 				break;
-			fprintf(stderr, "lg-magic: %s\n", err);
+			fprintf(stderr, "lgmagic: %s\n", err);
 			break;
 		}
 		if (rv == 0)
@@ -890,7 +890,7 @@ static void step_mouse_test(struct evdev_imu *dev, const struct calib *c,
 			    a_corr, g_corr);
 		airmouse_process(&am, g_corr, filt_out, &dx, &dy);
 		if (uinput_move(ufd, dx, dy) < 0)
-			fprintf(stderr, "lg-magic: uinput write failed\n");
+			fprintf(stderr, "lgmagic: uinput write failed\n");
 		printf("REL_X : %d REL_Y: %d\n", dx, dy);
 	}
 	uinput_close(ufd);
@@ -927,14 +927,14 @@ static void step_save_user_config(double alpha, double mouse_k,
 		pw = getpwnam(sudo_user);
 	if (pw) {
 		setenv("HOME", pw->pw_dir, 1);
-		snprintf(path, sizeof(path), "%s/.config/lg-magic/config.toml",
+		snprintf(path, sizeof(path), "%s/.config/lgmagic/config.toml",
 			 pw->pw_dir);
 	}
 	if (config_save_user(g_cfg, err, sizeof(err)) < 0) {
 		fprintf(stderr, "Warning: %s\n", err);
 	} else {
 		printf("Saved %s\n", path[0] ? path :
-		       "~/.config/lg-magic/config.toml");
+		       "~/.config/lgmagic/config.toml");
 		if (pw) {
 			char dir[4096];
 
@@ -942,7 +942,7 @@ static void step_save_user_config(double alpha, double mouse_k,
 			/* best effort: the files stay usable if this fails */
 			if (chown(dir, pw->pw_uid, pw->pw_gid) < 0) {
 			}
-			snprintf(dir, sizeof(dir), "%s/.config/lg-magic",
+			snprintf(dir, sizeof(dir), "%s/.config/lgmagic",
 				 pw->pw_dir);
 			if (chown(dir, pw->pw_uid, pw->pw_gid) < 0) {
 			}
@@ -967,33 +967,33 @@ static void step_summary(int daemon_mode, const char *calib_path)
 	dir_of(calib_path, rec_dir, sizeof(rec_dir));
 	printf("\n=== Step 12: summary ===\n");
 	printf("What was done:\n");
-	printf("  - /etc/modprobe.d/lg-magic.conf: %s\n",
+	printf("  - /etc/modprobe.d/lgmagic.conf: %s\n",
 	       daemon_mode ? "raw_only=1 imu_evdev=1"
 			   : "raw_only=0 airmouse=1 imu_evdev=1");
 	printf("  - calibration (accel + gyro) in %s\n", calib_path);
 	printf("  - %s/calib_accel.csv, calib_gyro.csv (recordings, for "
-	       "'lg-magic calibrate')\n", rec_dir);
+	       "'lgmagic calibrate')\n", rec_dir);
 	if (!daemon_mode)
 		printf("  - %s/%s* (per-device + generic kernel blob)\n",
-		       FW_DIR, "lg_magic_calib");
-	printf("  - user configuration (~/.config/lg-magic/config.toml)\n");
+		       FW_DIR, "lgmagic_calib");
+	printf("  - user configuration (~/.config/lgmagic/config.toml)\n");
 	printf("\nUsage:\n");
 	if (daemon_mode) {
-		printf("  lg-magic device list      paired remotes\n");
-		printf("  lg-magic device status    daemon status\n");
-		printf("  lg-magic profile set <MAC> <profile>\n");
-		printf("  lg-magic button map <MAC> KEY_FROM KEY_TO\n");
-		printf("  lg-magic diagnose         troubleshooting report\n");
+		printf("  lgmagic device list      paired remotes\n");
+		printf("  lgmagic device status    daemon status\n");
+		printf("  lgmagic profile set <MAC> <profile>\n");
+		printf("  lgmagic button map <MAC> KEY_FROM KEY_TO\n");
+		printf("  lgmagic diagnose         troubleshooting report\n");
 	} else {
-		printf("  lg-magic imu --mouse     airmouse (virtual mouse)\n");
-		printf("  lg-magic imu --ahrs      orientation angles\n");
-		printf("  lg-magic imu --cube      terminal cube\n");
+		printf("  lgmagic imu --mouse     airmouse (virtual mouse)\n");
+		printf("  lgmagic imu --ahrs      orientation angles\n");
+		printf("  lgmagic imu --cube      terminal cube\n");
 	}
-	printf("  lg-magic analyze         HID report decoder\n");
-	printf("  lg-magic config          show / edit the configuration\n");
-	printf("\nRe-run this wizard any time: sudo lg-magic setup\n");
+	printf("  lgmagic analyze         HID report decoder\n");
+	printf("  lgmagic config          show / edit the configuration\n");
+	printf("\nRe-run this wizard any time: sudo lgmagic setup\n");
 	printf("If the module parameters or the blob have not been applied yet,\n"
-	       "unplug the receiver, run 'sudo rmmod lg_magic', and plug it\n"
+	       "unplug the receiver, run 'sudo rmmod lgmagic', and plug it\n"
 	       "back in (or reboot).\n");
 }
 
@@ -1001,11 +1001,11 @@ static void step_summary(int daemon_mode, const char *calib_path)
 
 static void usage(FILE *out)
 {
-	fputs("Usage: lg-magic setup [--non-interactive]\n"
+	fputs("Usage: lgmagic setup [--non-interactive]\n"
 	      "\n"
 	      "Interactive wizard: module parameters, accelerometer and\n"
 	      "gyroscope calibration, firmware blob installation and user\n"
-	      "configuration. Run as root: sudo lg-magic setup\n"
+	      "configuration. Run as root: sudo lgmagic setup\n"
 	      "\n"
 	      "  --non-interactive   accept the defaults everywhere\n", out);
 }
@@ -1028,7 +1028,7 @@ int cmd_setup(int argc, char **argv)
 			usage(stdout);
 			return 0;
 		} else {
-			fprintf(stderr, "lg-magic setup: unexpected argument "
+			fprintf(stderr, "lgmagic setup: unexpected argument "
 				"'%s'\n", argv[i]);
 			usage(stderr);
 			return 1;
@@ -1055,14 +1055,14 @@ int cmd_setup(int argc, char **argv)
 		return 1;
 	}
 	if (mkdir(CALIB_DIR, 0755) < 0 && errno != EEXIST) {
-		fprintf(stderr, "lg-magic: cannot create %s: %s\n", CALIB_DIR,
+		fprintf(stderr, "lgmagic: cannot create %s: %s\n", CALIB_DIR,
 			strerror(errno));
 		return 1;
 	}
 
 	/* The reload in step 2 may have recreated the evdev nodes. */
 	if (evdev_find_imu(&dev, g_cfg->imu_device, err, sizeof(err)) < 0) {
-		fprintf(stderr, "lg-magic: %s\n", err);
+		fprintf(stderr, "lgmagic: %s\n", err);
 		fprintf(stderr, "The module is not running with imu_evdev=1 "
 			"yet - apply the parameters from step 2 and re-run.\n");
 		return 1;
@@ -1072,12 +1072,12 @@ int cmd_setup(int argc, char **argv)
 		printf("Device MAC: %s\n", uniq);
 
 	/* One calibration source per mode.  Daemon mode: the ONLY
-	 * authoritative file is /var/lib/lg-magic/<MAC>/calibration.json
+	 * authoritative file is /var/lib/lgmagic/<MAC>/calibration.json
 	 * (the daemon's default path); without a MAC the daemon resolves
 	 * the "unknown" identity under the state dir, so the wizard
 	 * writes exactly there.  The firmware blob is legacy-only
 	 * (raw_only=0).  Kernel mode keeps the v1 layout: the blob plus
-	 * /etc/lg-magic/calib.json.  /etc holds policy and profiles, not
+	 * /etc/lgmagic/calib.json.  /etc holds policy and profiles, not
 	 * calibration data. */
 	if (uniq[0] && strlen(uniq) == 17) {
 		char mac[18], state_dir[64];
@@ -1110,7 +1110,7 @@ int cmd_setup(int argc, char **argv)
 	/* The recordings live next to the authoritative file. */
 	dir_of(calib_path, rec_dir, sizeof(rec_dir));
 	if (mkdir_p(rec_dir) < 0) {
-		fprintf(stderr, "lg-magic: cannot create %s: %s\n",
+		fprintf(stderr, "lgmagic: cannot create %s: %s\n",
 			rec_dir, strerror(errno));
 		return 1;
 	}

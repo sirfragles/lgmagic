@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- * daemon_pipeline.h - lg-magicd frame pipeline (Linux only).
+ * daemon_pipeline.h - lgmagicd frame pipeline (Linux only).
  *
  * Keyboard frames: EV_KEY through the active profile's button map (an
  * unmapped key passes through unchanged), REL_WHEEL through the scroll

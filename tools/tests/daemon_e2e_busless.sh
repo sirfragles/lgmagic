@@ -1,24 +1,30 @@
 #!/bin/sh
 # SPDX-License-Identifier: GPL-2.0-or-later
 #
-# daemon_e2e_busless.sh - busless e2e for lg-magicd (Phase 3 gate).
+# daemon_e2e_busless.sh - busless e2e for lgmagicd (Phase 3 gate).
 #
 # Runs on a Linux CI runner as root.  SKIPs (exit 0) when /dev/uinput is
 # unavailable (e.g. the Apple container on macOS - the full run happens
 # on the ubuntu-latest runner).
 #
 # Covered: takeover + passthrough, rest (no spurious movement), airmouse
-# (calibrated gyro -> REL_X with v1 signs), standalone `lg-magic imu`
+# (calibrated gyro -> REL_X with v1 signs), standalone `lgmagic imu`
 # in parallel (IMU is deliberately NOT grabbed), SIGHUP profile reload
 # (button map + scroll_speed), hotplug reconnect, grab active and grab
 # release after SIGKILL.
-
+#
+# `cond && cmd || true` in cleanup() and `cond && ... || fail ...`
+# assertions are deliberate: under `set -e` the || true arms absorb the
+# nonzero exit of reaping already-dead daemon processes, and fail() cannot
+# be reached when the checked condition holds.  SC2015 (info) warns about
+# the idiom generically; it is not a bug here.
+# shellcheck disable=SC2015
 set -eu
 
-SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
-TOOLS_DIR=$(CDPATH= cd -- "$SCRIPT_DIR/.." && pwd)
-BIN=$TOOLS_DIR/lg-magic
-DAEMON=$TOOLS_DIR/lg-magicd
+SCRIPT_DIR=$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd)
+TOOLS_DIR=$(CDPATH='' cd -- "$SCRIPT_DIR/.." && pwd)
+BIN=$TOOLS_DIR/lgmagic
+DAEMON=$TOOLS_DIR/lgmagicd
 FAKE=$SCRIPT_DIR/fake_devices
 
 # 0. uinput available?
@@ -73,7 +79,7 @@ find_node()
 }
 
 # like find_node, but matches by NAME PREFIX - the daemon's virtual
-# devices carry the identity ("lg-magicd keyboard unknown"), while the
+# devices carry the identity ("lgmagicd keyboard unknown"), while the
 # fake devices need the exact match (a prefix would collide
 # "LG Magic Remote" with "LG Magic Remote IMU")
 find_node_prefix()
@@ -156,10 +162,10 @@ DAEMON_PID=$!
 wait_for "daemon startup" "virtual devices ready" "$TMP/daemon.log"
 wait_for "daemon takeover" "remote unknown: keyboard" "$TMP/daemon.log"
 
-OUTK=$(find_node_prefix "lg-magicd keyboard")
-OUTM=$(find_node_prefix "lg-magicd mouse")
-[ -n "$OUTK" ] || fail "daemon: 'lg-magicd keyboard' output node not found"
-[ -n "$OUTM" ] || fail "daemon: 'lg-magicd mouse' output node not found"
+OUTK=$(find_node_prefix "lgmagicd keyboard")
+OUTM=$(find_node_prefix "lgmagicd mouse")
+[ -n "$OUTK" ] || fail "daemon: 'lgmagicd keyboard' output node not found"
+[ -n "$OUTM" ] || fail "daemon: 'lgmagicd mouse' output node not found"
 echo "daemon: outk=$OUTK outm=$OUTM"
 
 # ------------------------------------------------------------------ #
@@ -197,7 +203,7 @@ grep -q "REL_Y" "$TMP/w3.out" && fail "airmouse: unexpected REL_Y: $(cat "$TMP/w
 echo "OK airmouse"
 
 # ------------------------------------------------------------------ #
-# 4. Standalone `lg-magic imu` works in parallel (IMU not grabbed)    #
+# 4. Standalone `lgmagic imu` works in parallel (IMU not grabbed)    #
 # ------------------------------------------------------------------ #
 
 # The CSV is written when the CLI exits, so end it explicitly:

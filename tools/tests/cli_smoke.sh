@@ -1,9 +1,9 @@
 #!/bin/sh
 # SPDX-License-Identifier: GPL-2.0-or-later
 #
-# cli_smoke.sh - smoke tests for the lg-magic multi-call binary (Linux).
+# cli_smoke.sh - smoke tests for the lgmagic multi-call binary (Linux).
 #
-# Usage: sh cli_smoke.sh /path/to/lg-magic
+# Usage: sh cli_smoke.sh /path/to/lgmagic
 #
 # Covers the top-level argument handling of main.c (help / version /
 # unknown subcommand / global --config), the documented contract that every
@@ -18,19 +18,26 @@
 # All temporary files live under ${TMPDIR:-/tmp} and are removed on exit.
 # Exit status: 0 = all checks passed (or skipped), 1 = a check failed.
 
+# The assertion idiom `cond && pass "$name" || fail "$name"` is
+# deliberate: pass() and fail() only count and print (they cannot fail),
+# so the || arm can never run while cond is true.  SC2015 (info) warns
+# about the idiom generically; it is not a bug here.
+# shellcheck disable=SC2015
+
 BIN=$1
-[ -n "$BIN" ] || BIN=./lg-magic
+[ -n "$BIN" ] || BIN=./lgmagic
 
 if [ ! -x "$BIN" ]; then
 	echo "SKIP tests/cli_smoke.sh: $BIN not found or not executable"
-	echo "  (the lg-magic binary is Linux-only; run make -C tools to build it)"
+	echo "  (the lgmagic binary is Linux-only; run make -C tools to build it)"
 	exit 0
 fi
 
 # A leftover binary from an older checkout (e.g. a v1 build) would fail
-# every check below.  Skip unless it really is a fresh v2 binary.
-if ! "$BIN" --version 2>/dev/null | grep -q '2\.0'; then
-	echo "SKIP tests/cli_smoke.sh: $BIN is not a v2 binary"
+# every check below.  Skip unless it really is a fresh lgmagic binary
+# (any semver — never a hardcoded version literal).
+if ! "$BIN" --version 2>/dev/null | grep -qE '^lgmagic [0-9]+\.[0-9]+\.[0-9]+'; then
+	echo "SKIP tests/cli_smoke.sh: $BIN is not an lgmagic binary"
 	echo "  (stale build? rebuild with make -C tools on Linux)"
 	exit 0
 fi
@@ -118,13 +125,13 @@ check_err()
 # Top level (main.c)
 # ----------------------------------------------------------------------
 
-check "--version prints the version and exits 0" 0 '^lg-magic ' -- --version
-check "--help prints usage on stdout, exit 0" 0 'Usage: lg-magic' -- --help
-check "-h is accepted like --help" 0 'Usage: lg-magic' -- -h
+check "--version prints the version and exits 0" 0 '^lgmagic ' -- --version
+check "--help prints usage on stdout, exit 0" 0 'Usage: lgmagic' -- --help
+check "-h is accepted like --help" 0 'Usage: lgmagic' -- -h
 
 "$BIN" >"$TMP/out" 2>"$TMP/err"
 check_rc "no arguments prints usage to stderr and exits 1" 1 $?
-grep -q 'Usage: lg-magic' "$TMP/err" && pass "no-argument usage goes to stderr" ||
+grep -q 'Usage: lgmagic' "$TMP/err" && pass "no-argument usage goes to stderr" ||
 	fail "no-argument usage goes to stderr"
 
 check_err "unknown subcommand is rejected" 1 "unknown subcommand 'frobnicate'" \
@@ -171,7 +178,7 @@ fi
 
 HOME="$TMP/home" "$BIN" config path >"$TMP/out" 2>"$TMP/err"
 rc=$?
-grep -q "user:   $TMP/home/.config/lg-magic/config.toml" "$TMP/out" &&
+grep -q "user:   $TMP/home/.config/lgmagic/config.toml" "$TMP/out" &&
 	pass "config path reports the scratch user file" ||
 	fail "config path reports the scratch user file (rc=$rc)"
 
@@ -182,9 +189,9 @@ if [ "$rc" -eq 0 ] && grep -q '^lpf_alpha = 0.35$' "$TMP/out"; then
 else
 	fail "config set echoes 'lpf_alpha = 0.35' (rc=$rc)"
 fi
-[ -f "$TMP/home/.config/lg-magic/config.toml" ] &&
-	pass "config set wrote ~/.config/lg-magic/config.toml" ||
-	fail "config set wrote ~/.config/lg-magic/config.toml"
+[ -f "$TMP/home/.config/lgmagic/config.toml" ] &&
+	pass "config set wrote ~/.config/lgmagic/config.toml" ||
+	fail "config set wrote ~/.config/lgmagic/config.toml"
 
 HOME="$TMP/home" "$BIN" config >"$TMP/out" 2>"$TMP/err"
 rc=$?
@@ -238,8 +245,8 @@ HOME="$TMP/home" "$BIN" config migrate >"$TMP/out" 2>"$TMP/err"
 check_rc "bare 'config migrate' is a no-op here, exit 0" 0 $?
 
 # a leftover v1 JSON next to a MISSING .toml produces a migrate hint
-mkdir -p "$TMP/home2/.config/lg-magic"
-printf '%s\n' '{"lpf_alpha": 0.4}' >"$TMP/home2/.config/lg-magic/config.json"
+mkdir -p "$TMP/home2/.config/lgmagic"
+printf '%s\n' '{"lpf_alpha": 0.4}' >"$TMP/home2/.config/lgmagic/config.json"
 HOME="$TMP/home2" "$BIN" config >"$TMP/out" 2>"$TMP/err"
 grep -q 'config migrate' "$TMP/err" &&
 	pass "a leftover v1 JSON produces a migrate hint on stderr" ||

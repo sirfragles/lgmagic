@@ -10,7 +10,7 @@
  *
  * with C `(int)` truncation (towards zero) preserved bit for bit.
  * Used by `imu --mouse`, the setup wizard's airmouse test and the
- * lg-magicd daemon - one engine, one behaviour.
+ * lgmagicd daemon - one engine, one behaviour.
  */
 #ifndef LG_TOOLS_AIRMOUSE_H
 #define LG_TOOLS_AIRMOUSE_H

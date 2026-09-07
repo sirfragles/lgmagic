@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- * toml.c - minimal TOML parser/writer for the lg-magic tools (portable).
+ * toml.c - minimal TOML parser/writer for the lgmagic tools (portable).
  * See toml.h for the supported subset.
  */
 #include "toml.h"

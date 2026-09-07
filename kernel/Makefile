@@ -1,12 +1,12 @@
-obj-m += lg_magic.o
+obj-m += lgmagic.o
 
-lg_magic-objs := lg_magic_main.o lg_magic_airmouse.o
+lgmagic-objs := lgmagic_main.o lgmagic_airmouse.o
 
 KDIR ?= /lib/modules/$(KVER)/build
 KVER ?= $(shell uname -r)
 PWD  := $(shell pwd)
 
-CFLAGS_lg_magic_airmouse.o += $(CC_FLAGS_FPU)
+CFLAGS_lgmagic_airmouse.o += $(CC_FLAGS_FPU)
 
 all:
 	$(MAKE) -C $(KDIR) M=$(PWD) modules

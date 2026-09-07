@@ -1,4 +1,4 @@
-/*  This is part of lg_magic_dkms
+/*  This is part of lgmagic_dkms
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -16,7 +16,7 @@
 */
 
 #include <linux/types.h>
-#include "lg_magic_airmouse.h"
+#include "lgmagic_airmouse.h"
 
 static inline float lgmagic_fabs(float val)
 {
@@ -25,7 +25,7 @@ static inline float lgmagic_fabs(float val)
 	return val;
 }
 
-int lgmagic_validate_calib(struct lg_magic_airmouse_calib *calib)
+int lgmagic_validate_calib(struct lgmagic_airmouse_calib *calib)
 {
 	for (size_t i = 0; i < 3; i++)
 	{
@@ -46,7 +46,7 @@ static inline void lgmagic_lpf(float *acc, float alpha, float value)
 	*acc = alpha * value + (1.0 - alpha) * (*acc);
 }
 
-int lgmagic_calc_mouse(struct lg_magic_airmouse_calib *calib, float *gyro_acc, u16 threshold, s16 *gyro, s16 *mouse)
+int lgmagic_calc_mouse(struct lgmagic_airmouse_calib *calib, float *gyro_acc, u16 threshold, s16 *gyro, s16 *mouse)
 {
 	for (size_t i = 0; i < 3; i++)
 	{

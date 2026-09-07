@@ -1,5 +1,5 @@
-# lg-magic global configuration (v2, TOML).
-# Precedence: built-in defaults < this file < ~/.config/lg-magic/config.toml
+# lgmagic global configuration (TOML).
+# Precedence: built-in defaults < this file < ~/.config/lgmagic/config.toml
 # < --config FILE < CLI flags.  Unknown keys are ignored; a malformed file
 # is skipped with a warning.
 
@@ -7,7 +7,7 @@
 imu_device = ""
 hidraw_device = ""
 
-# Calibration JSON used by `lg-magic imu`/`lg-magic analyze` when no
+# Calibration JSON used by `lgmagic imu`/`lgmagic analyze` when no
 # --calib flag is given.  The daemon resolves per-device calibration
 # from the device file itself, not from here.
 default_calib = ""

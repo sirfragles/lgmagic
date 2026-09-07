@@ -4,9 +4,9 @@
  *
  * The v2 daemon creates one pair per discovered remote, named after
  * its identity:
- *   - "lg-magicd keyboard <MAC>": the full EV_KEY set + REL_WHEEL etc.,
- *   - "lg-magicd mouse <MAC>":    REL_X/REL_Y/REL_WHEEL_HI_RES + buttons.
- * The v1 `lg-magic imu --mouse` behaviour is kept bit-for-bit through
+ *   - "lgmagicd keyboard <MAC>": the full EV_KEY set + REL_WHEEL etc.,
+ *   - "lgmagicd mouse <MAC>":    REL_X/REL_Y/REL_WHEEL_HI_RES + buttons.
+ * The v1 `lgmagic imu --mouse` behaviour is kept bit-for-bit through
  * the uinput_open()/uinput_move() wrappers (same name, ids and event
  * set as v1).
  */
@@ -57,7 +57,7 @@ int uinput_scroll(int fd, int wheel, int hi_res);
 /* Emit a relative move (REL_X/REL_Y) + SYN_REPORT.  Returns 0 or -1. */
 int uinput_move(int fd, int dx, int dy);
 
-/* v1 compatibility: the `imu --mouse` virtual mouse ("lg-magic mouse",
+/* v1 compatibility: the `imu --mouse` virtual mouse ("lgmagic mouse",
  * REL_X/REL_Y + BTN_LEFT/BTN_RIGHT, BUS_USB 0x1:0x1 - unchanged from
  * v1).  Returns the fd or -1 with err. */
 int uinput_open(char *err, size_t errsz);

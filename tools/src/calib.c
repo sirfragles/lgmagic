@@ -208,7 +208,7 @@ oom:
 }
 
 void calib_to_blob(const struct calib *c, float alpha, float mouse_k,
-		   struct lg_magic_airmouse_calib *blob)
+		   struct lgmagic_airmouse_calib *blob)
 {
 	int i;
 
@@ -220,7 +220,7 @@ void calib_to_blob(const struct calib *c, float alpha, float mouse_k,
 	blob->mouse_k = mouse_k;
 }
 
-int calib_validate_blob(const struct lg_magic_airmouse_calib *blob)
+int calib_validate_blob(const struct lgmagic_airmouse_calib *blob)
 {
 	int i, ret = 0;
 

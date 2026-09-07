@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later
  *
  * test_calib_blob.c - unit tests for the kernel calibration blob
- * conversion (calib.h + include/lg_magic_calib.h).
+ * conversion (calib.h + include/lgmagic_calib.h).
  *
  *  - the struct layout is compile-time checked: 32 bytes total with
  *    gyro_bias[3] @ 0, gyro_scale[3] @ 12, alpha @ 24, mouse_k @ 28
@@ -27,14 +27,14 @@
 
 /* Layout single source of truth: kernel and tools include this file
  * literally, so the checks are compile-time. */
-_Static_assert(sizeof(struct lg_magic_airmouse_calib) == 32,
+_Static_assert(sizeof(struct lgmagic_airmouse_calib) == 32,
 	       "calibration blob must be exactly 32 bytes");
-_Static_assert(offsetof(struct lg_magic_airmouse_calib, gyro_bias[0]) == 0 &&
-	       offsetof(struct lg_magic_airmouse_calib, gyro_scale[0]) == 12 &&
-	       offsetof(struct lg_magic_airmouse_calib, alpha) == 24 &&
-	       offsetof(struct lg_magic_airmouse_calib, mouse_k) == 28,
+_Static_assert(offsetof(struct lgmagic_airmouse_calib, gyro_bias[0]) == 0 &&
+	       offsetof(struct lgmagic_airmouse_calib, gyro_scale[0]) == 12 &&
+	       offsetof(struct lgmagic_airmouse_calib, alpha) == 24 &&
+	       offsetof(struct lgmagic_airmouse_calib, mouse_k) == 28,
 	       "calibration blob field offsets must be 0/12/24/28");
-_Static_assert(sizeof(struct lg_magic_airmouse_calib) /
+_Static_assert(sizeof(struct lgmagic_airmouse_calib) /
 		       sizeof(float) == 8,
 	       "calibration blob is eight floats");
 
@@ -42,7 +42,7 @@ static void test_blob_from_ref_calib(void)
 {
 	char jpath[4096], bpath[4096];
 	struct calib c;
-	struct lg_magic_airmouse_calib blob;
+	struct lgmagic_airmouse_calib blob;
 	char *golden;
 	size_t glen = 0;
 	char err[256];
@@ -135,7 +135,7 @@ static void test_ref_gyro_defaults(void)
 
 static void test_validate(void)
 {
-	struct lg_magic_airmouse_calib blob = {
+	struct lgmagic_airmouse_calib blob = {
 		.gyro_bias = { 0.0f, 0.0f, 0.0f },
 		.gyro_scale = { 1.0f, 1.0f, 1.0f },
 		.alpha = 0.2f,

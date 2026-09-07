@@ -1,5 +1,5 @@
 Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
-Upstream-Name: lg-magic
+Upstream-Name: lgmagic
 Upstream-Contact: Ilya Chelyadin <https://github.com/sirfragles/lgmagic>
 Source: https://github.com/sirfragles/lgmagic
 

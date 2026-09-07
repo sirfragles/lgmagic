@@ -1,11 +1,11 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- * cmd_config.c - `lg-magic config` subcommand.
+ * cmd_config.c - `lgmagic config` subcommand.
  *
- *   lg-magic config                   print the effective configuration
- *   lg-magic config set KEY VALUE     set one key, save to the user file
- *   lg-magic config path              print the config file paths
- *   lg-magic config migrate [FILE]    convert a v1 config.json to TOML
+ *   lgmagic config                   print the effective configuration
+ *   lgmagic config set KEY VALUE     set one key, save to the user file
+ *   lgmagic config path              print the config file paths
+ *   lgmagic config migrate [FILE]    convert a v1 config.json to TOML
  *
  * Keys: imu_device, hidraw_device, default_calib (strings) and
  * lpf_alpha, mouse_scale, madgwick_beta, alpha, mouse_k,
@@ -24,11 +24,11 @@
 
 static void usage(FILE *out)
 {
-	fputs("Usage: lg-magic config [show|set KEY VALUE|path|migrate [FILE]]\n"
+	fputs("Usage: lgmagic config [show|set KEY VALUE|path|migrate [FILE]]\n"
 	      "\n"
 	      "  (no argument)    print the effective configuration\n"
 	      "  set KEY VALUE    set one key and save it to\n"
-	      "                   ~/.config/lg-magic/config.toml\n"
+	      "                   ~/.config/lgmagic/config.toml\n"
 	      "  path             print the config file locations\n"
 	      "  migrate [FILE]   convert a v1 config.json to TOML\n"
 	      "                   (the JSON source is kept)\n"
@@ -65,12 +65,12 @@ static int migrate_one(const char *json_path)
 	int rc = 0;
 
 	if (len < 5 || strcmp(json_path + len - 5, ".json") != 0) {
-		fprintf(stderr, "lg-magic config migrate: '%s' does not end "
+		fprintf(stderr, "lgmagic config migrate: '%s' does not end "
 			"in .json\n", json_path);
 		return 1;
 	}
 	if (len + 1 >= sizeof(toml_path)) {
-		fprintf(stderr, "lg-magic config migrate: path too long: %s\n",
+		fprintf(stderr, "lgmagic config migrate: path too long: %s\n",
 			json_path);
 		return 1;
 	}
@@ -82,7 +82,7 @@ static int migrate_one(const char *json_path)
 			printf("skip %s: no v1 config\n", json_path);
 			return 0;
 		}
-		fprintf(stderr, "lg-magic config migrate: %s: %s\n", json_path,
+		fprintf(stderr, "lgmagic config migrate: %s: %s\n", json_path,
 			strerror(errno));
 		return 1;
 	}
@@ -93,19 +93,19 @@ static int migrate_one(const char *json_path)
 
 	root = json_load_file(json_path, &err, &eoff);
 	if (!root) {
-		fprintf(stderr, "lg-magic config migrate: %s: %s (byte %zu)\n",
+		fprintf(stderr, "lgmagic config migrate: %s: %s (byte %zu)\n",
 			json_path, err ? err : "parse error", eoff);
 		return 1;
 	}
 	if (root->type != JSON_OBJ) {
-		fprintf(stderr, "lg-magic config migrate: %s: root is not an "
+		fprintf(stderr, "lgmagic config migrate: %s: root is not an "
 			"object\n", json_path);
 		rc = 1;
 		goto done;
 	}
 	out = toml_new_table();
 	if (!out) {
-		fprintf(stderr, "lg-magic config migrate: out of memory\n");
+		fprintf(stderr, "lgmagic config migrate: out of memory\n");
 		rc = 1;
 		goto done;
 	}
@@ -120,14 +120,14 @@ static int migrate_one(const char *json_path)
 		else if (v->type == JSON_NUM)
 			tv = toml_new_float(v->num);
 		else {
-			fprintf(stderr, "lg-magic config migrate: skipping "
+			fprintf(stderr, "lgmagic config migrate: skipping "
 				"'%s': unsupported JSON value\n", keys[i]);
 			continue;
 		}
 		if (!tv || toml_table_add(out, keys[i], tv) < 0) {
 			if (tv)
 				toml_free(tv);
-			fprintf(stderr, "lg-magic config migrate: out of "
+			fprintf(stderr, "lgmagic config migrate: out of "
 				"memory\n");
 			rc = 1;
 			goto done;
@@ -136,19 +136,19 @@ static int migrate_one(const char *json_path)
 
 	text = toml_dumps(out);
 	if (!text) {
-		fprintf(stderr, "lg-magic config migrate: out of memory\n");
+		fprintf(stderr, "lgmagic config migrate: out of memory\n");
 		rc = 1;
 		goto done;
 	}
 	f = fopen(toml_path, "w");
 	if (!f) {
-		fprintf(stderr, "lg-magic config migrate: cannot open %s: %s\n",
+		fprintf(stderr, "lgmagic config migrate: cannot open %s: %s\n",
 			toml_path, strerror(errno));
 		rc = 1;
 		goto done;
 	}
 	if (fputs(text, f) < 0 || fclose(f) != 0) {
-		fprintf(stderr, "lg-magic config migrate: write error on %s\n",
+		fprintf(stderr, "lgmagic config migrate: write error on %s\n",
 			toml_path);
 		rc = 1;
 		goto done;
@@ -199,17 +199,17 @@ int cmd_config(int argc, char **argv)
 
 	if (strcmp(argv[1], "set") == 0) {
 		if (argc != 4) {
-			fprintf(stderr, "usage: lg-magic config set "
+			fprintf(stderr, "usage: lgmagic config set "
 				"KEY VALUE\n");
 			return 1;
 		}
 		if (config_set_key(g_cfg, argv[2], argv[3],
 				   err, sizeof(err)) < 0) {
-			fprintf(stderr, "lg-magic: %s\n", err);
+			fprintf(stderr, "lgmagic: %s\n", err);
 			return 1;
 		}
 		if (config_save_user(g_cfg, err, sizeof(err)) < 0) {
-			fprintf(stderr, "lg-magic: %s\n", err);
+			fprintf(stderr, "lgmagic: %s\n", err);
 			return 1;
 		}
 		printf("%s = %s\n", argv[2], argv[3]);
@@ -222,30 +222,30 @@ int cmd_config(int argc, char **argv)
 		int rc;
 
 		if (argc > 3) {
-			fprintf(stderr, "usage: lg-magic config migrate "
+			fprintf(stderr, "usage: lgmagic config migrate "
 				"[FILE]\n");
 			return 1;
 		}
 		if (argc == 3)
 			return migrate_one(argv[2]);
 		/* Both standard locations; /etc first (may need root). */
-		rc = migrate_one("/etc/lg-magic/config.json");
+		rc = migrate_one("/etc/lgmagic/config.json");
 		home = getenv("HOME");
 		if (!home) {
 			printf("skip user config: HOME is not set\n");
 			return rc;
 		}
 		if (snprintf(path, sizeof(path),
-			     "%s/.config/lg-magic/config.json", home) >=
+			     "%s/.config/lgmagic/config.json", home) >=
 		    (int)sizeof(path)) {
-			fprintf(stderr, "lg-magic config migrate: HOME path "
+			fprintf(stderr, "lgmagic config migrate: HOME path "
 				"too long\n");
 			return rc ? rc : 1;
 		}
 		return rc || migrate_one(path);
 	}
 
-	fprintf(stderr, "lg-magic config: unknown argument '%s'\n\n", argv[1]);
+	fprintf(stderr, "lgmagic config: unknown argument '%s'\n\n", argv[1]);
 	usage(stderr);
 	return 1;
 }

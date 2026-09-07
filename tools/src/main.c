@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- * main.c - entry point of the multi-call lg-magic binary.
+ * main.c - entry point of the multi-call lgmagic binary.
  *
- * Usage: lg-magic <subcommand> [options]
+ * Usage: lgmagic <subcommand> [options]
  *
  * Global flags (accepted anywhere on the command line):
  *   --config FILE   extra config file, merged after the system/user files
@@ -20,12 +20,12 @@
 #include <string.h>
 
 static const char *usage_text =
-	"Usage: lg-magic <subcommand> [options]\n"
+	"Usage: lgmagic <subcommand> [options]\n"
 	"\n"
 	"Tools for the LG Magic Remote MR20 airmouse driver.\n"
 	"\n"
 	"Subcommands:\n"
-	"  analyze     decode HIDRAW reports from the remote (like lg_magic.py)\n"
+	"  analyze     decode HIDRAW reports from the remote (like lgmagic.py)\n"
 	"  imu         read the IMU via evdev: CSV, airmouse, AHRS, cube\n"
 	"  calibrate   fit accel/gyro calibration from an IMU CSV recording\n"
 	"  calib2bin   convert a calibration JSON to the 32-byte firmware blob\n"
@@ -42,9 +42,9 @@ static const char *usage_text =
 	"  --version       print version and exit\n"
 	"  --help          print this help and exit\n"
 	"\n"
-	"Configuration precedence: built-in defaults < /etc/lg-magic/config.toml\n"
-	"< ~/.config/lg-magic/config.toml < --config FILE < CLI flags.\n"
-	"Run 'lg-magic <subcommand> --help' for subcommand options.\n";
+	"Configuration precedence: built-in defaults < /etc/lgmagic/config.toml\n"
+	"< ~/.config/lgmagic/config.toml < --config FILE < CLI flags.\n"
+	"Run 'lgmagic <subcommand> --help' for subcommand options.\n";
 
 struct command {
 	const char *name;
@@ -77,13 +77,13 @@ int main(int argc, char **argv)
 	/* Pull out the global flags; everything else goes to the subcommand. */
 	rest = malloc((size_t)argc * sizeof(*rest));
 	if (!rest) {
-		fprintf(stderr, "lg-magic: out of memory\n");
+		fprintf(stderr, "lgmagic: out of memory\n");
 		return 1;
 	}
 	for (i = 1; i < (size_t)argc; i++) {
 		if (strcmp(argv[i], "--config") == 0) {
 			if (i + 1 >= (size_t)argc) {
-				fprintf(stderr, "lg-magic: --config needs a "
+				fprintf(stderr, "lgmagic: --config needs a "
 					"file argument\n");
 				free(rest);
 				return 1;
@@ -104,7 +104,7 @@ int main(int argc, char **argv)
 		return nrest == 0 ? 1 : 0;
 	}
 	if (strcmp(rest[0], "--version") == 0) {
-		printf("lg-magic %s\n", g_tool_version);
+		printf("lgmagic %s\n", g_tool_version);
 		free(rest);
 		return 0;
 	}
@@ -113,7 +113,7 @@ int main(int argc, char **argv)
 		if (strcmp(rest[0], commands[i].name) == 0) {
 			g_cfg = config_load(extra_config);
 			if (!g_cfg) {
-				fprintf(stderr, "lg-magic: out of memory\n");
+				fprintf(stderr, "lgmagic: out of memory\n");
 				free(rest);
 				return 1;
 			}
@@ -125,7 +125,7 @@ int main(int argc, char **argv)
 		}
 	}
 
-	fprintf(stderr, "lg-magic: unknown subcommand '%s'\n\n", rest[0]);
+	fprintf(stderr, "lgmagic: unknown subcommand '%s'\n\n", rest[0]);
 	fputs(usage_text, stderr);
 	free(rest);
 	return 1;

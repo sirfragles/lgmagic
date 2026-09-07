@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- * cmd_diagnose.c - `lg-magic diagnose` (read-only, exit 0 always).
+ * cmd_diagnose.c - `lgmagic diagnose` (read-only, exit 0 always).
  *
  * A report for bug reports: version, kernel, module parameters, the
  * hidraw/evdev devices behind the remote, config presence, daemon
@@ -224,16 +224,16 @@ static void diag_daemon(void)
 	section("daemon");
 	memset(&c, 0, sizeof(c));
 	if (dbus_connect(&c, NULL, err, sizeof(err)) < 0) {
-		printf("lg-magicd: not running (%s)\n", err);
+		printf("lgmagicd: not running (%s)\n", err);
 		return;
 	}
 	if (dbus_call(&c, "ListDevices", "", NULL, &err_name, &err_msg, &out,
 		      err, sizeof(err)) < 0) {
-		printf("lg-magicd: bus error\n");
+		printf("lgmagicd: bus error\n");
 		dbus_disconnect(&c);
 		return;
 	}
-	printf("lg-magicd: running (%zu device%s)\n", out->n,
+	printf("lgmagicd: running (%zu device%s)\n", out->n,
 	       out->n == 1 ? "" : "s");
 	for (i = 0; i < out->n; i++) {
 		struct dbus_value *st = NULL;
@@ -278,7 +278,7 @@ int cmd_diagnose(int argc, char **argv)
 
 	(void)argc;
 	(void)argv;
-	printf("lg-magic %s\n", g_tool_version);
+	printf("lgmagic %s\n", g_tool_version);
 	if (uname(&u) == 0)
 		printf("kernel: %s %s %s\n", u.sysname, u.release, u.machine);
 	else

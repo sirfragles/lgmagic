@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- * daemon_devices.c - lg-magicd device discovery and hotplug.
+ * daemon_devices.c - lgmagicd device discovery and hotplug.
  * See daemon_devices.h.
  */
 #include "daemon_devices.h"
@@ -30,7 +30,7 @@ static void log_info(const char *fmt, ...)
 {
 	va_list ap;
 
-	fprintf(stderr, "lg-magicd: ");
+	fprintf(stderr, "lgmagicd: ");
 	va_start(ap, fmt);
 	vfprintf(stderr, fmt, ap);
 	va_end(ap);
@@ -43,7 +43,7 @@ static void log_debug(const struct daemon_devices *dd, const char *fmt, ...)
 
 	if (!dd->debug)
 		return;
-	fprintf(stderr, "lg-magicd: ");
+	fprintf(stderr, "lgmagicd: ");
 	va_start(ap, fmt);
 	vfprintf(stderr, fmt, ap);
 	va_end(ap);
@@ -181,15 +181,15 @@ static int remote_uinput_open(struct daemon_remote *r,
 {
 	struct uinput_spec kbd, mouse;
 	/* identity is 64 bytes; room for it plus the fixed prefix */
-	char kname[sizeof(r->identity) + sizeof("lg-magicd keyboard ")];
-	char mname[sizeof(r->identity) + sizeof("lg-magicd mouse ")];
+	char kname[sizeof(r->identity) + sizeof("lgmagicd keyboard ")];
+	char mname[sizeof(r->identity) + sizeof("lgmagicd mouse ")];
 	char err[256];
 	int i;
 
 	if (dd->no_uinput)
 		return 0;
-	snprintf(kname, sizeof(kname), "lg-magicd keyboard %s", r->identity);
-	snprintf(mname, sizeof(mname), "lg-magicd mouse %s", r->identity);
+	snprintf(kname, sizeof(kname), "lgmagicd keyboard %s", r->identity);
+	snprintf(mname, sizeof(mname), "lgmagicd mouse %s", r->identity);
 	uinput_spec_init(&kbd, kname);
 	for (i = 0; i < KEY_CNT; i++)
 		uinput_spec_key(&kbd, (unsigned)i);
@@ -257,7 +257,7 @@ static int remote_open(struct daemon_remote *r, const char *identity,
 	else
 		log_debug(dd, "grabbed %s", kbd_path);
 
-	/* IMU: NO grab - `lg-magic imu --csv/--mouse` runs in parallel. */
+	/* IMU: NO grab - `lgmagic imu --csv/--mouse` runs in parallel. */
 	if (imu_path[0] &&
 	    evdev_find_imu(&r->imu, imu_path, err, sizeof(err)) < 0) {
 		log_debug(dd, "IMU %s: %s", imu_path, err);

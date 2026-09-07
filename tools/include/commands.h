@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- * commands.h - subcommand entry points of the multi-call lg-magic binary.
+ * commands.h - subcommand entry points of the multi-call lgmagic binary.
  * Each command returns its exit code (0 = success).
  */
 #ifndef LG_TOOLS_COMMANDS_H

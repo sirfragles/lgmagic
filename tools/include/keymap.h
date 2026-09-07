@@ -8,9 +8,9 @@
  *    builds on macOS where linux/input.h does not exist).  The table is
  *    curated: every code the kernel module can emit, plus common
  *    mapping targets (mouse buttons, media keys).
- *  - LG button codes with their lg_magic.py names ("WHEEL_PRESS",
+ *  - LG button codes with their lgmagic.py names ("WHEEL_PRESS",
  *    "VOL+", ...) - verbatim from hidraw.c button_codes - plus the
- *    kernel's default decode (lg_btn_map in lg_magic_main.c, with the
+ *    kernel's default decode (lg_btn_map in lgmagic_main.c, with the
  *    raw_only semantics: the WHEEL button reports KEY_ENTER because the
  *    BTN_LEFT branch only ever engaged in the airmouse mode).
  */

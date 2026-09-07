@@ -1,11 +1,11 @@
-# lg-magic.spec - Fedora package: DKMS kernel module + daemon + tools.
+# lgmagic.spec - Fedora package: DKMS kernel module + daemon + tools.
 #
 # DKMS on Fedora requires kernel-devel matching the running kernel on the
 # target machine (noted in README.md and the setup wizard). The daemon is
 # not enabled on install - the wizard does `systemctl enable --now`.
 
-Name:           lg-magic
-Version:        2.0.1
+Name:           lgmagic
+Version:        0.0.1
 Release:        1%{?dist}
 Summary:        LG Magic Remote MR20 driver, daemon and tools
 License:        GPL-2.0-or-later
@@ -28,10 +28,10 @@ Linux kernel driver for the LG Magic Remote MR20 (Bluetooth 000f:3412):
 a raw decoder of the remote's HID reports (buttons and wheel) plus a raw
 IMU evdev device, with per-device calibration loaded from firmware blobs.
 
-The userspace side is a system daemon (lg-magicd) that takes over the
+The userspace side is a system daemon (lgmagicd) that takes over the
 input devices, applies profiles, calibration, button mapping and the
 airmouse pipeline, and exposes one virtual mouse and keyboard; writes are
-gated by polkit. The lg-magic CLI (libc/libm only) covers the IMU reader,
+gated by polkit. The lgmagic CLI (libc/libm only) covers the IMU reader,
 HID report analyzer, calibration utilities, configuration handling,
 daemon control and the interactive setup wizard.
 
@@ -46,58 +46,49 @@ make tools
 %install
 make install DESTDIR=%{buildroot} PREFIX=%{_prefix} UDEV_DIR=%{_udevrulesdir}
 # The DKMS tree: dkms.conf + the module sources.
-install -d %{buildroot}%{_prefix}/src/lg-magic-%{version}
-cp -r kernel include %{buildroot}%{_prefix}/src/lg-magic-%{version}/
+install -d %{buildroot}%{_prefix}/src/lgmagic-%{version}
+cp -r kernel include %{buildroot}%{_prefix}/src/lgmagic-%{version}/
 install -m 644 Makefile COPYING dkms.conf \
-    %{buildroot}%{_prefix}/src/lg-magic-%{version}/
+    %{buildroot}%{_prefix}/src/lgmagic-%{version}/
 
 %post
 # DKMS build+install; each step best-effort (missing kernel-devel or an
 # unsigned Secure Boot module must never break the package install).
 if [ -x /usr/sbin/dkms ]; then
-    /usr/sbin/dkms add -m lg-magic -v %{version} || :
-    /usr/sbin/dkms build -m lg-magic -v %{version} || :
-    /usr/sbin/dkms install -m lg-magic -v %{version} || :
+    /usr/sbin/dkms add -m lgmagic -v %{version} || :
+    /usr/sbin/dkms build -m lgmagic -v %{version} || :
+    /usr/sbin/dkms install -m lgmagic -v %{version} || :
 fi
-%systemd_post lg-magicd.service
-%tmpfiles_create lg-magic.conf
+%systemd_post lgmagicd.service
+%tmpfiles_create lgmagic.conf
 udevadm control --reload-rules || :
 udevadm trigger || :
 
 %preun
-%systemd_preun lg-magicd.service
+%systemd_preun lgmagicd.service
 if [ "$1" -eq 0 ] && [ -x /usr/sbin/dkms ]; then
-    /usr/sbin/dkms remove -m lg-magic -v %{version} --all || :
+    /usr/sbin/dkms remove -m lgmagic -v %{version} --all || :
 fi
 
 %postun
-%systemd_postun_with_restart lg-magicd.service
+%systemd_postun_with_restart lgmagicd.service
 
 %files
-%{_bindir}/lg-magic
-%{_libexecdir}/lg-magicd
-%{_unitdir}/lg-magicd.service
-%{_tmpfilesdir}/lg-magic.conf
+%{_bindir}/lgmagic
+%{_libexecdir}/lgmagicd
+%{_unitdir}/lgmagicd.service
+%{_tmpfilesdir}/lgmagic.conf
 %{_datadir}/polkit-1/actions/org.lgmagic.policy
 %{_datadir}/dbus-1/system.d/org.lgmagic.conf
-%config(noreplace) /etc/lg-magic/config.toml
+%config(noreplace) /etc/lgmagic/config.toml
 %{_udevrulesdir}/51-lgimu.rules
-%{_prefix}/src/lg-magic-%{version}/kernel
-%{_prefix}/src/lg-magic-%{version}/include
-%{_prefix}/src/lg-magic-%{version}/Makefile
-%{_prefix}/src/lg-magic-%{version}/COPYING
-%{_prefix}/src/lg-magic-%{version}/dkms.conf
+%{_prefix}/src/lgmagic-%{version}/kernel
+%{_prefix}/src/lgmagic-%{version}/include
+%{_prefix}/src/lgmagic-%{version}/Makefile
+%{_prefix}/src/lgmagic-%{version}/COPYING
+%{_prefix}/src/lgmagic-%{version}/dkms.conf
 
 %changelog
-* Mon Sep 07 2026 Ilya Chelyadin <sirfragles@users.noreply.github.com> - 2.0.1-1
-- Per-remote virtual keyboard/mouse pairs named after the device
-  identity; held keys are released on a live remap (no stuck keys);
-  single calibration source per mode (daemon: /var/lib/lg-magic, no
-  firmware blob); device identity validation on the bus; ApiVersion
-  property; O_EXCL state writes; IMU udev rule restricted to the LG
-  vendor/product.
-
-* Sun Sep 06 2026 Ilya Chelyadin <sirfragles@users.noreply.github.com> - 2.0-1
-- v2.0: system daemon (lg-magicd) with full input takeover, sd-bus
-  interface and polkit-gated writes; raw_only=1 kernel default;
-  JSON->TOML configuration; device/profile/button/scroll/diagnose CLI.
+* Mon Sep 07 2026 Ilya Chelyadin <sirfragles@users.noreply.github.com> - 0.0.1-1
+- Fresh start: renamed to lgmagic; version line restarts at 0.0.1;
+- VERSION repository variable is the single source of truth.

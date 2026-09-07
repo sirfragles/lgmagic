@@ -17,9 +17,9 @@ int cmd_bus_connect(struct dbus_client *c)
 
 	if (dbus_connect(c, NULL, err, sizeof(err)) == 0)
 		return 0;
-	fprintf(stderr, "lg-magic: %s\n", err);
-	fprintf(stderr, "lg-magic: lg-magicd is not running - try: "
-		"sudo systemctl enable --now lg-magicd\n");
+	fprintf(stderr, "lgmagic: %s\n", err);
+	fprintf(stderr, "lgmagic: lgmagicd is not running - try: "
+		"sudo systemctl enable --now lgmagicd\n");
 	return -1;
 }
 
@@ -36,17 +36,17 @@ int cmd_bus_call(struct dbus_client *c, const char *method, const char *sig,
 	case 1:
 		if (*err_name && strcmp(*err_name,
 					 "org.lgmagic.Error.NotAuthorized") == 0)
-			fprintf(stderr, "lg-magic: permission denied (polkit)\n");
+			fprintf(stderr, "lgmagic: permission denied (polkit)\n");
 		else if (*err_msg && (*err_msg)[0])
-			fprintf(stderr, "lg-magic: %s\n", *err_msg);
+			fprintf(stderr, "lgmagic: %s\n", *err_msg);
 		else
-			fprintf(stderr, "lg-magic: %s\n",
+			fprintf(stderr, "lgmagic: %s\n",
 				*err_name ? *err_name : "daemon error");
 		return -1;
 	default:
-		fprintf(stderr, "lg-magic: %s\n", err);
-		fprintf(stderr, "lg-magic: lg-magicd is not running - try: "
-			"sudo systemctl enable --now lg-magicd\n");
+		fprintf(stderr, "lgmagic: %s\n", err);
+		fprintf(stderr, "lgmagic: lgmagicd is not running - try: "
+			"sudo systemctl enable --now lgmagicd\n");
 		return -1;
 	}
 }
@@ -66,13 +66,13 @@ int cmd_bus_resolve_mac(struct dbus_client *c, const char *given,
 			 &out) < 0)
 		return -1;
 	if (out->type == DBUS_VALUE_EMPTY || out->n == 0) {
-		fprintf(stderr, "lg-magic: no devices (is the remote "
+		fprintf(stderr, "lgmagic: no devices (is the remote "
 			"connected?)\n");
 		dbus_value_free(out);
 		return -1;
 	}
 	if (out->n > 1) {
-		fprintf(stderr, "lg-magic: multiple devices, specify a MAC: ");
+		fprintf(stderr, "lgmagic: multiple devices, specify a MAC: ");
 		for (i = 0; i < out->n; i++)
 			fprintf(stderr, "%s%s", i ? ", " : "", out->items[i]);
 		fprintf(stderr, "\n");
@@ -86,16 +86,16 @@ int cmd_bus_resolve_mac(struct dbus_client *c, const char *given,
 
 const char *cmd_config_root(void)
 {
-	const char *r = getenv("LG_MAGIC_CONFIG_ROOT");
+	const char *r = getenv("LGMAGIC_CONFIG_ROOT");
 
-	return r && r[0] ? r : "/etc/lg-magic";
+	return r && r[0] ? r : "/etc/lgmagic";
 }
 
 const char *cmd_state_dir(void)
 {
-	const char *r = getenv("LG_MAGIC_STATE_DIR");
+	const char *r = getenv("LGMAGIC_STATE_DIR");
 
-	return r && r[0] ? r : "/var/lib/lg-magic";
+	return r && r[0] ? r : "/var/lib/lgmagic";
 }
 
 /* memmove-based join (see daemon_config.c: the compiler cannot bound

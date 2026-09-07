@@ -2,22 +2,22 @@
 
 **Language:** **English🇬🇧** [Русский🇷🇺](README.ru.md)
 
-![LG Magic Remote](images/lg_magic_remote.png)
+![LG Magic Remote](images/lgmagic_remote.png)
 
 ## Overview
 
 This project is the **native C successor** of the original LG Magic Remote
 project. The Linux kernel driver for the MR20 remote (Bluetooth HID device
 `000f:3412`) is the foundation; the original Python toolchain has been
-**completely replaced by C**: one `lg-magic` binary (libc/libm only) and
-one system daemon `lg-magicd` (sd-bus + polkit).
+**completely replaced by C**: one `lgmagic` binary (libc/libm only) and
+one system daemon `lgmagicd` (sd-bus + polkit).
 
 The v2 architecture is a **thin kernel, fat userspace** split:
 
 ```
                         raw_only=1 (default)
  ┌──────────────┐  decodes LG reports      ┌────────────────────────────┐
- │ lg_magic.ko  │ ───────────────────────→ │ evdev "LG Magic Remote"    │
+ │ lgmagic.ko  │ ───────────────────────→ │ evdev "LG Magic Remote"    │
  │ (kernel)     │  buttons (lg_btn_map),   │   EV_KEY + REL_WHEEL       │
  │              │  wheel→REL_WHEEL,        │ evdev "LG Magic Remote IMU"│
  │              │  IMU (EV_ABS),           │   EV_ABS + MSC counter     │
@@ -25,15 +25,15 @@ The v2 architecture is a **thin kernel, fat userspace** split:
  └──────────────┘                                │ IMU (never grabbed!)
                                                  ▼          │ EVIOCGRAB
                                         ┌──────────────────┴─────────────┐
-                                        │ lg-magicd (root, systemd)      │
+                                        │ lgmagicd (root, systemd)      │
                                         │  profile · calibration · map   │
                                         │  wheel×scroll_speed · airmouse │
-                                        │  state: /var/lib/lg-magic/     │
+                                        │  state: /var/lib/lgmagic/     │
                                         └───┬──────────────────┬─────────┘
                                uinput     │                  │  sd-bus (org.lgmagic)
-                   ┌───────── "lg-magicd keyboard <identity>" ─┼── polkitd
+                   ┌───────── "lgmagicd keyboard <identity>" ─┼── polkitd
                    ▼                                          ▼
-            per remote: one virtual mouse            CLI `lg-magic`
+            per remote: one virtual mouse            CLI `lgmagic`
             + keyboard (names carry the MAC)         (libc/libm, own D-Bus client)
 ```
 
@@ -42,16 +42,16 @@ What this means in practice:
 - **The remote works standalone.** The kernel decodes buttons and the
   wheel directly (`raw_only=1`, the v2 default) — the remote keeps
   working even when the daemon is not running.
-- **The daemon adds the rest.** `lg-magicd` grabs the keyboard evdev
+- **The daemon adds the rest.** `lgmagicd` grabs the keyboard evdev
   (only *after* its virtual devices are ready) and adds the airmouse,
   profiles, button mapping, scroll speed and calibration on top, through
   **one virtual mouse + one virtual keyboard per remote** — the pair is
-  named after the remote's identity (`lg-magicd keyboard <MAC>` /
-  `lg-magicd mouse <MAC>`, `unknown` when the MAC is not readable), and
+  named after the remote's identity (`lgmagicd keyboard <MAC>` /
+  `lgmagicd mouse <MAC>`, `unknown` when the MAC is not readable), and
   held keys are tracked per remote. When the daemon stops — including
   crashes — the grab is released with its file descriptors and the
   remote falls back to raw kernel input.
-- **Zero runtime dependencies for the CLI** — `lg-magic` is built against
+- **Zero runtime dependencies for the CLI** — `lgmagic` is built against
   libc/libm only and talks to the daemon over D-Bus with a small
   hand-rolled client (no libsystemd, no Python). The daemon links
   libsystemd (sd-bus) and logs to the journal.
@@ -70,7 +70,7 @@ The original Python scripts remain in `scripts/` for reference only.
 
 ## Features
 
-### Kernel module (`lg_magic.ko`)
+### Kernel module (`lgmagic.ko`)
 
 - Full button decode (power, digits, navigation, media, color buttons)
   via a static key map — mode-independent, identical to v1
@@ -85,7 +85,7 @@ The original Python scripts remain in `scripts/` for reference only.
 - Calibration loaded from `/lib/firmware` (per-remote by Bluetooth MAC,
   with a generic fallback)
 
-### The `lg-magicd` daemon
+### The `lgmagicd` daemon
 
 - Discovers the remote's keyboard and IMU evdev devices (paired by
   Bluetooth MAC from sysfs), hotplug-aware
@@ -98,24 +98,24 @@ The original Python scripts remain in `scripts/` for reference only.
   authorization on every mutating method; device identities are validated
   ("unknown" or a 17-char BT MAC — anything else is
   `org.lgmagic.Error.InvalidArguments`) and the `ApiVersion` property
-  (`"2.0"`) lets clients check compatibility; the IMU evdev device is
-  never grabbed, so `lg-magic imu` works in parallel
+  (`"0.0"`) lets clients check compatibility; the IMU evdev device is
+  never grabbed, so `lgmagic imu` works in parallel
 
-### The `lg-magic` binary
+### The `lgmagic` binary
 
 | Subcommand | Purpose |
 |---|---|
-| `lg-magic analyze` | Decode HIDRAW reports from the remote (replaces `lg_magic.py`) |
-| `lg-magic imu` | Read the IMU via evdev: raw display, `--csv` recording, `--ahrs` orientation, `--cube` terminal cube, `--mouse` uinput airmouse |
-| `lg-magic calibrate` | Fit accelerometer (Levenberg–Marquardt) / gyroscope calibration from a CSV recording |
-| `lg-magic calib2bin` | Convert a calibration JSON into the 32-byte kernel firmware blob |
-| `lg-magic config` | Show / change the TOML configuration (including `migrate` from v1 JSON) |
-| `lg-magic setup` | Interactive wizard: mode choice, configure, calibrate, install — end to end |
-| `lg-magic device` | `list` the daemon's devices / `status` of one device (no root needed) |
-| `lg-magic profile` | `list` profiles, `show` the active one, `set` it (polkit: profile-set) |
-| `lg-magic button` | `list` the key map, `map`/`reset` buttons (polkit: modify-input) |
-| `lg-magic scroll` | Wheel speed and airmouse sensitivity (polkit: profile-set) |
-| `lg-magic diagnose` | Collect version, kernel, module, device, config and daemon state into a report for bug reports |
+| `lgmagic analyze` | Decode HIDRAW reports from the remote (replaces `lgmagic.py`) |
+| `lgmagic imu` | Read the IMU via evdev: raw display, `--csv` recording, `--ahrs` orientation, `--cube` terminal cube, `--mouse` uinput airmouse |
+| `lgmagic calibrate` | Fit accelerometer (Levenberg–Marquardt) / gyroscope calibration from a CSV recording |
+| `lgmagic calib2bin` | Convert a calibration JSON into the 32-byte kernel firmware blob |
+| `lgmagic config` | Show / change the TOML configuration (including `migrate` from v1 JSON) |
+| `lgmagic setup` | Interactive wizard: mode choice, configure, calibrate, install — end to end |
+| `lgmagic device` | `list` the daemon's devices / `status` of one device (no root needed) |
+| `lgmagic profile` | `list` profiles, `show` the active one, `set` it (polkit: profile-set) |
+| `lgmagic button` | `list` the key map, `map`/`reset` buttons (polkit: modify-input) |
+| `lgmagic scroll` | Wheel speed and airmouse sensitivity (polkit: profile-set) |
+| `lgmagic diagnose` | Collect version, kernel, module, device, config and daemon state into a report for bug reports |
 
 ## Requirements
 
@@ -124,12 +124,12 @@ The original Python scripts remain in `scripts/` for reference only.
   automatically by the packages; on Fedora you need a matching
   `kernel-devel` on the target machine, and on Arch `dkms` comes from
   the AUR)
-- **libsystemd** (runtime library for `lg-magicd`) and **polkit**
+- **libsystemd** (runtime library for `lgmagicd`) and **polkit**
   (recommended; without a running polkitd the daemon rejects all
   mutating calls except from root)
 - **gcc + make** — only if you build from source
 
-The `lg-magic` binary itself needs nothing at runtime beyond libc/libm.
+The `lgmagic` binary itself needs nothing at runtime beyond libc/libm.
 
 ## Installation
 
@@ -140,40 +140,40 @@ Download the package for your distro from the latest
 
 ```bash
 # Ubuntu / Debian
-sudo apt install ./lg-magic-dkms_2.0.1-1_amd64.deb
+sudo apt install ./lgmagic-dkms_0.0.1-1_amd64.deb
 
 # Fedora
-sudo dnf install ./lg-magic-2.0.1-1.fc42.x86_64.rpm
+sudo dnf install ./lgmagic-0.0.1-1.fc42.x86_64.rpm
 
 # Arch
-sudo pacman -U ./lg-magic-2.0.1-1-x86_64.pkg.tar.zst
+sudo pacman -U ./lgmagic-0.0.1-1-x86_64.pkg.tar.zst
 ```
 
-The packages install `/usr/bin/lg-magic`, `/usr/libexec/lg-magicd`
-(`/usr/lib/lg-magicd` on Arch), the systemd unit, the polkit policy, the
+The packages install `/usr/bin/lgmagic`, `/usr/libexec/lgmagicd`
+(`/usr/lib/lgmagicd` on Arch), the systemd unit, the polkit policy, the
 D-Bus configuration, the default TOML config, the udev rule and the DKMS
 source tree — and register the module with DKMS, which builds
-`lg_magic.ko` for your kernel and keeps it rebuilt on kernel upgrades.
+`lgmagic.ko` for your kernel and keeps it rebuilt on kernel upgrades.
 The daemon is **not auto-started**: run the wizard, which enables it.
 
 ### 2. Build from source
 
 ```bash
-make              # kernel module + lg-magic + lg-magicd
+make              # kernel module + lgmagic + lgmagicd
 make check        # build the tools and run the full test suite
 sudo make install # binaries, unit, policy, dbus conf, tmpfiles, config
-sudo modprobe lg_magic
+sudo modprobe lgmagic
 ```
 
 ### 3. Manual DKMS install
 
 ```bash
-sudo mkdir -p /usr/src/lg-magic-2.0.1
-sudo cp Makefile dkms.conf COPYING /usr/src/lg-magic-2.0.1/
-sudo cp -r kernel include /usr/src/lg-magic-2.0.1/
-sudo dkms add -m lg-magic -v 2.0.1
-sudo dkms build -m lg-magic -v 2.0.1
-sudo dkms install -m lg-magic -v 2.0.1
+sudo mkdir -p /usr/src/lgmagic-0.0.1
+sudo cp Makefile dkms.conf COPYING /usr/src/lgmagic-0.0.1/
+sudo cp -r kernel include /usr/src/lgmagic-0.0.1/
+sudo dkms add -m lgmagic -v 0.0.1
+sudo dkms build -m lgmagic -v 0.0.1
+sudo dkms install -m lgmagic -v 0.0.1
 # DKMS builds the module only — install the tools separately:
 make tools && sudo make install
 ```
@@ -184,7 +184,7 @@ After installing, run the wizard — it walks through the input mode
 choice, calibration, daemon setup and an airmouse test:
 
 ```bash
-sudo lg-magic setup
+sudo lgmagic setup
 ```
 
 Steps performed by the wizard:
@@ -192,9 +192,9 @@ Steps performed by the wizard:
 1. **Environment check** — root, module loaded, devices detected
    (`/dev/uinput` included)
 2. **Input mode** — the v2 default **daemon mode** (`raw_only=1
-   imu_evdev=1`, enables `lg-magicd`), or the v1 behaviour **kernel
+   imu_evdev=1`, enables `lgmagicd`), or the v1 behaviour **kernel
    airmouse** (`raw_only=0 airmouse=1 imu_evdev=1`)
-3. **Module parameters** — writes `/etc/modprobe.d/lg-magic.conf` and
+3. **Module parameters** — writes `/etc/modprobe.d/lgmagic.conf` and
    reloads the module
 4. **Accelerometer calibration** — "slowly rotate the remote in all axes"
    (20 s recording, Levenberg–Marquardt fit, quality validation)
@@ -202,20 +202,20 @@ Steps performed by the wizard:
    (10 s recording, mean bias)
 6. **Calibration tuning** — LPF alpha and sensitivity questions
 7. **Firmware blob** — **kernel airmouse mode only**:
-   `lg_magic_calib_XX_XX_XX_XX_XX_XX.bin` for your remote's Bluetooth
-   MAC (+ `lg_magic_calib.bin` fallback) in `/lib/firmware/`. In daemon
+   `lgmagic_calib_XX_XX_XX_XX_XX_XX.bin` for your remote's Bluetooth
+   MAC (+ `lgmagic_calib.bin` fallback) in `/lib/firmware/`. In daemon
    mode this step is skipped on purpose — the calibration JSON is the
    single source and the blob would be a second, stale copy.
 8. **Daemon state** (daemon mode) — writes
-   `/var/lib/lg-magic/<MAC>/calibration.json` and
-   `/etc/lg-magic/devices.d/<MAC>.toml`, and enables `lg-magicd`
+   `/var/lib/lgmagic/<MAC>/calibration.json` and
+   `/etc/lgmagic/devices.d/<MAC>.toml`, and enables `lgmagicd`
    (`systemctl enable --now`, best-effort); the recordings
    (`calib_accel.csv` / `calib_gyro.csv`) land next to the JSON in
-   `/var/lib/lg-magic/<MAC>/`
+   `/var/lib/lgmagic/<MAC>/`
 9. **Module reload** — verified with `dmesg` ("Loading LG Magic calibration")
 10. **Airmouse test** — "move the remote, Ctrl+C ends" (in daemon mode
     this reads the daemon's status and falls back to the standalone test)
-11. **User configuration** — `~/.config/lg-magic/config.toml` with the
+11. **User configuration** — `~/.config/lgmagic/config.toml` with the
     calibration path and airmouse tuning
 12. **Summary** — what was done and how to repeat or undo it
 
@@ -223,59 +223,59 @@ Steps performed by the wizard:
 
 ## Usage
 
-Run `lg-magic --help` or `lg-magic <subcommand> --help` for details.
+Run `lgmagic --help` or `lgmagic <subcommand> --help` for details.
 
 ```bash
 # HIDRAW packet analyzer (auto-detects the remote by VID/PID 000f:3412)
-lg-magic analyze                        # or --device /dev/hidrawN / --list
+lgmagic analyze                        # or --device /dev/hidrawN / --list
 
 # Raw IMU display (auto-detects the "IMU" evdev device)
-lg-magic imu
+lgmagic imu
 
 # Record raw samples for calibration
-lg-magic imu --csv samples.csv --duration 20
+lgmagic imu --csv samples.csv --duration 20
 
 # Orientation angles (Madgwick AHRS) / terminal cube (implies --ahrs)
-lg-magic imu --calib calib.json --ahrs
-lg-magic imu --calib calib.json --cube
+lgmagic imu --calib calib.json --ahrs
+lgmagic imu --calib calib.json --cube
 
 # Standalone uinput airmouse (needs the udev rule + input group, or root)
-lg-magic imu --calib calib.json --mouse
+lgmagic imu --calib calib.json --mouse
 
 # Calibration from a recording
-lg-magic calibrate samples.csv calib_accel.json --accel
-lg-magic calibrate samples.csv calib_gyro.json --gyro
+lgmagic calibrate samples.csv calib_accel.json --accel
+lgmagic calibrate samples.csv calib_gyro.json --gyro
 
 # 32-byte firmware blob
-lg-magic calib2bin calib.json lg_magic_calib.bin --alpha 0.2 --mouse_k 0.5
-sudo cp lg_magic_calib.bin /lib/firmware/
+lgmagic calib2bin calib.json lgmagic_calib.bin --alpha 0.2 --mouse_k 0.5
+sudo cp lgmagic_calib.bin /lib/firmware/
 
 # Configuration (TOML)
-lg-magic config                    # effective configuration
-lg-magic config set mouse_k 0.5    # save into ~/.config/lg-magic/config.toml
-lg-magic config migrate            # import v1 config.json files to TOML
-lg-magic config path               # config file locations
+lgmagic config                    # effective configuration
+lgmagic config set mouse_k 0.5    # save into ~/.config/lgmagic/config.toml
+lgmagic config migrate            # import v1 config.json files to TOML
+lgmagic config path               # config file locations
 
 # The daemon (no sudo for reads; writes are polkit-gated)
-lg-magic device list                # remotes the daemon manages
-lg-magic device status              # or lg-magic device status <MAC>
-lg-magic profile list               # profiles of the default device
-lg-magic profile set <MAC> tv       # switch profile (polkit: profile-set)
-lg-magic button list                # current key map
-lg-magic button map <MAC> KEY_UP KEY_VOLUMEUP   # (polkit: modify-input)
-lg-magic button reset <MAC>
-lg-magic scroll speed <MAC> 2.0     # wheel multiplier (polkit: profile-set)
-lg-magic diagnose                   # report for bug reports
+lgmagic device list                # remotes the daemon manages
+lgmagic device status              # or lgmagic device status <MAC>
+lgmagic profile list               # profiles of the default device
+lgmagic profile set <MAC> tv       # switch profile (polkit: profile-set)
+lgmagic button list                # current key map
+lgmagic button map <MAC> KEY_UP KEY_VOLUMEUP   # (polkit: modify-input)
+lgmagic button reset <MAC>
+lgmagic scroll speed <MAC> 2.0     # wheel multiplier (polkit: profile-set)
+lgmagic diagnose                   # report for bug reports
 ```
 
 If the daemon is not running, the daemon subcommands print
-`lg-magicd is not running — try: sudo systemctl enable --now lg-magicd`.
+`lgmagicd is not running — try: sudo systemctl enable --now lgmagicd`.
 
 ### Configuration
 
 The CLI config is TOML in v2 (`config migrate` imports v1 JSON files and
 leaves them in place). Precedence: built-in defaults <
-`/etc/lg-magic/config.toml` < `~/.config/lg-magic/config.toml` <
+`/etc/lgmagic/config.toml` < `~/.config/lgmagic/config.toml` <
 `--config FILE` < CLI flags.
 
 | Key | Type | Default | Meaning |
@@ -294,11 +294,11 @@ leaves them in place). Precedence: built-in defaults <
 
 The daemon reads its own files (never the user config):
 
-- `/etc/lg-magic/devices.d/<MAC>.toml` — per-remote settings, written by
+- `/etc/lgmagic/devices.d/<MAC>.toml` — per-remote settings, written by
   the wizard (admin):
   ```toml
   profile = "default"
-  calib = "/var/lib/lg-magic/AA_BB_CC_DD_EE_FF/calibration.json"
+  calib = "/var/lib/lgmagic/AA_BB_CC_DD_EE_FF/calibration.json"
   airmouse = true
 
   [profiles.default]
@@ -308,10 +308,10 @@ The daemon reads its own files (never the user config):
   [profiles.default.button_map]
   "KEY_ENTER" = "BTN_LEFT"     # wheel press -> mouse click
   ```
-- `/var/lib/lg-magic/state.toml` — the active profile per device, owned
+- `/var/lib/lgmagic/state.toml` — the active profile per device, owned
   by the daemon (atomic writes)
-- `Reload()` after any manual edit: `lg-magic button reset <MAC>` also
-  reloads, or `sudo systemctl reload lg-magicd`
+- `Reload()` after any manual edit: `lgmagic button reset <MAC>` also
+  reloads, or `sudo systemctl reload lgmagicd`
 
 Precedence: built-in defaults < `devices.d` < `state.toml` (active
 profile). A malformed calibration file is rejected with a journal
@@ -333,18 +333,18 @@ closed: only root is authorized.
 
 ### Manual calibration (without the wizard)
 
-1. **Record** raw samples: `lg-magic imu --csv samples.csv`
+1. **Record** raw samples: `lgmagic imu --csv samples.csv`
 2. **Fit** accelerometer (rotate the remote slowly through all
    orientations while recording):
-   `lg-magic calibrate samples.csv calib_accel.json --accel`
+   `lgmagic calibrate samples.csv calib_accel.json --accel`
 3. **Fit** gyroscope (remote lying still):
-   `lg-magic calibrate samples.csv calib_gyro.json --gyro`
+   `lgmagic calibrate samples.csv calib_gyro.json --gyro`
 4. **Combine** the `accel` and `gyro` sections into one JSON; set
    `gyro.scale` to a sensible value (around `0.07`, per the default
    `gyro_scale_default`)
-5. **Convert and install**: `lg-magic calib2bin calib.json …` + copy to
-   `/lib/firmware/` (see above), then `sudo modprobe -r lg_magic &&
-   sudo modprobe lg_magic`
+5. **Convert and install**: `lgmagic calib2bin calib.json …` + copy to
+   `/lib/firmware/` (see above), then `sudo modprobe -r lgmagic &&
+   sudo modprobe lgmagic`
 
 ## Module parameters
 
@@ -358,10 +358,10 @@ closed: only root is authorized.
 
 ```bash
 # At load time
-sudo modprobe lg_magic raw_only=1 imu_evdev=1 debug=1
-# Or persistently in /etc/modprobe.d/lg-magic.conf (the wizard writes this)
+sudo modprobe lgmagic raw_only=1 imu_evdev=1 debug=1
+# Or persistently in /etc/modprobe.d/lgmagic.conf (the wizard writes this)
 # Or at runtime via sysfs
-echo 0 > /sys/module/lg_magic/parameters/debug
+echo 0 > /sys/module/lgmagic/parameters/debug
 ```
 
 Upgrading from v1: the default parameter changes to `raw_only=1`, which
@@ -373,24 +373,24 @@ setup.
 
 | Path | Contents |
 |---|---|
-| `/usr/bin/lg-magic` | the tools binary |
-| `/usr/libexec/lg-magicd` | the daemon (`/usr/lib/lg-magicd` on Arch) |
-| `/usr/lib/systemd/system/lg-magicd.service` | the systemd unit |
-| `/usr/lib/tmpfiles.d/lg-magic.conf` | `/var/lib/lg-magic` directory |
+| `/usr/bin/lgmagic` | the tools binary |
+| `/usr/libexec/lgmagicd` | the daemon (`/usr/lib/lgmagicd` on Arch) |
+| `/usr/lib/systemd/system/lgmagicd.service` | the systemd unit |
+| `/usr/lib/tmpfiles.d/lgmagic.conf` | `/var/lib/lgmagic` directory |
 | `/usr/share/polkit-1/actions/org.lgmagic.policy` | the two polkit actions |
 | `/usr/share/dbus-1/system.d/org.lgmagic.conf` | D-Bus policy for the daemon |
-| `/lib/modules/$(uname -r)/kernel/drivers/input/misc/lg_magic.ko` | the module (via DKMS) |
-| `/usr/src/lg-magic-2.0.1/` | DKMS source tree |
+| `/lib/modules/$(uname -r)/kernel/drivers/input/misc/lgmagic.ko` | the module (via DKMS) |
+| `/usr/src/lgmagic-0.0.1/` | DKMS source tree |
 | `/etc/udev/rules.d/51-lgimu.rules` | udev rules (IMU evdev, hidraw, uinput) |
-| `/etc/modprobe.d/lg-magic.conf` | module parameters (written by the wizard) |
-| `/etc/lg-magic/config.toml` | system-wide CLI config (conffile) |
-| `/etc/lg-magic/devices.d/<MAC>.toml` | per-remote daemon settings |
-| `/etc/lg-magic/calib.json` | calibration JSON (wizard default) |
-| `/var/lib/lg-magic/state.toml` | active profiles (daemon-owned) |
-| `/var/lib/lg-magic/<MAC>/calibration.json` | per-remote calibration (daemon) |
-| `/lib/firmware/lg_magic_calib.bin` | calibration blob, generic fallback |
-| `/lib/firmware/lg_magic_calib_XX_XX_XX_XX_XX_XX.bin` | calibration blob, per remote (BT MAC) |
-| `~/.config/lg-magic/config.toml` | user CLI config |
+| `/etc/modprobe.d/lgmagic.conf` | module parameters (written by the wizard) |
+| `/etc/lgmagic/config.toml` | system-wide CLI config (conffile) |
+| `/etc/lgmagic/devices.d/<MAC>.toml` | per-remote daemon settings |
+| `/etc/lgmagic/calib.json` | calibration JSON (wizard default) |
+| `/var/lib/lgmagic/state.toml` | active profiles (daemon-owned) |
+| `/var/lib/lgmagic/<MAC>/calibration.json` | per-remote calibration (daemon) |
+| `/lib/firmware/lgmagic_calib.bin` | calibration blob, generic fallback |
+| `/lib/firmware/lgmagic_calib_XX_XX_XX_XX_XX_XX.bin` | calibration blob, per remote (BT MAC) |
+| `~/.config/lgmagic/config.toml` | user CLI config |
 
 ## Development
 
@@ -426,9 +426,9 @@ the CSV format, the alignment matrix, filter constants and the firmware
 blob layout — and are validated against golden data generated by the
 Python implementations. A few deliberate, documented improvements:
 
-- `lg-magic analyze` auto-detects the remote by VID/PID instead of a
+- `lgmagic analyze` auto-detects the remote by VID/PID instead of a
   hardcoded `/dev/hidraw7`
-- `lg-magic imu --cube` implies `--ahrs` (the Python `--cube` alone
+- `lgmagic imu --cube` implies `--ahrs` (the Python `--cube` alone
   showed a static cube)
 - a `--gyro`-only calibration writes an identity accelerometer
   correction instead of empty arrays (empty arrays broke `--ahrs`)
@@ -440,17 +440,17 @@ only; they are no longer part of the supported workflow.
 ## Project structure
 
 ```
-├── kernel/            # the kernel module (lg_magic.ko)
-├── include/           # lg_magic_calib.h — calibration struct shared
+├── kernel/            # the kernel module (lgmagic.ko)
+├── include/           # lgmagic_calib.h — calibration struct shared
 │                      #   verbatim between kernel and userspace
 ├── tools/
-│   ├── src/           # lg-magic (multi-call, libc/libm) + lg-magicd
+│   ├── src/           # lgmagic (multi-call, libc/libm) + lgmagicd
 │   ├── include/       # internal headers
 │   └── tests/         # unit / parity / smoke / e2e tests
 ├── data/              # config.toml, unit, polkit policy, dbus conf, tmpfiles
 ├── testdata/          # golden fixtures (generated from the Python scripts)
-├── debian/            # Debian/Ubuntu packaging (lg-magic-dkms)
-├── rpm/               # Fedora packaging (lg-magic.spec)
+├── debian/            # Debian/Ubuntu packaging (lgmagic-dkms)
+├── rpm/               # Fedora packaging (lgmagic.spec)
 ├── arch/              # Arch packaging (PKGBUILD + .install)
 ├── scripts/           # the original Python tools (deprecated reference)
 ├── dkms.conf          # DKMS configuration (module only)

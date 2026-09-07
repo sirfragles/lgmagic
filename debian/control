@@ -1,4 +1,4 @@
-Source: lg-magic
+Source: lgmagic
 Section: kernel
 Priority: optional
 Maintainer: Ilya Chelyadin <sirfragles@users.noreply.github.com>
@@ -7,7 +7,7 @@ Build-Depends: debhelper-compat (= 13), gcc, make, libsystemd-dev,
 Standards-Version: 4.6.2
 Homepage: https://github.com/sirfragles/lgmagic
 
-Package: lg-magic-dkms
+Package: lgmagic-dkms
 Architecture: linux-any
 Depends: ${shlibs:Depends}, ${misc:Depends}, dkms
 Recommends: polkitd
@@ -16,9 +16,9 @@ Description: LG Magic Remote MR20 driver (DKMS), daemon and tools
  a raw decoder of the remote's HID reports (buttons and wheel) plus a raw
  IMU evdev device, with per-device calibration loaded from firmware blobs.
  .
- The userspace side is a system daemon (lg-magicd) that takes over the
+ The userspace side is a system daemon (lgmagicd) that takes over the
  input devices, applies profiles, calibration, button mapping and the
  airmouse pipeline, and exposes one virtual mouse and keyboard; writes are
- gated by polkit. The lg-magic CLI (libc/libm only) covers the IMU reader,
+ gated by polkit. The lgmagic CLI (libc/libm only) covers the IMU reader,
  HID report analyzer, calibration utilities, configuration handling,
  daemon control and the interactive setup wizard.

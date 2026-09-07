@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- * daemon_bus.c - lg-magicd sd-bus interface + polkit (Linux only).
+ * daemon_bus.c - lgmagicd sd-bus interface + polkit (Linux only).
  *
  * One object (org.lgmagic / /org/lgmagic/Manager / org.lgmagic.Manager)
  * with the read methods unprivileged and the write methods gated by
@@ -83,7 +83,7 @@ static void remote_apply(struct daemon_remote *r, struct daemon_devices *dd)
 	if (pipeline_configure(&r->pl, &r->dc, calib,
 			       dd->config->global->lpf_alpha,
 			       r->kbd_uinput, err, sizeof(err)) < 0)
-		fprintf(stderr, "lg-magicd: %s: %s\n", r->identity, err);
+		fprintf(stderr, "lgmagicd: %s: %s\n", r->identity, err);
 }
 
 /* Roll the mutated in-memory config back to what is on disk. */
@@ -96,7 +96,7 @@ static void remote_rollback(struct daemon_remote *r, struct daemon_devices *dd)
 	if (daemon_config_load_remote(dd->config, r->identity, &fresh,
 				      err, sizeof(err)) < 0) {
 		/* keep the defaults - better than a half-mutated state */
-		fprintf(stderr, "lg-magicd: %s: rollback failed: %s\n",
+		fprintf(stderr, "lgmagicd: %s: rollback failed: %s\n",
 			r->identity, err);
 	}
 	device_config_free(&r->dc);
@@ -189,7 +189,7 @@ static int polkit_authorized(sd_bus_message *m, const char *action)
 			       "s", sender);
 	if (r < 0) {
 		fprintf(stderr,
-			"lg-magicd: polkit: GetConnectionCredentials(%s): %s\n",
+			"lgmagicd: polkit: GetConnectionCredentials(%s): %s\n",
 			sender, error.message);
 		sd_bus_error_free(&error);
 		return -1;
@@ -229,7 +229,7 @@ static int polkit_authorized(sd_bus_message *m, const char *action)
 	sd_bus_message_unref(reply);
 
 	if (!have_uid || !have_pid) {
-		fprintf(stderr, "lg-magicd: polkit: no uid/pid for %s\n",
+		fprintf(stderr, "lgmagicd: polkit: no uid/pid for %s\n",
 			sender);
 		return -1;
 	}
@@ -239,7 +239,7 @@ static int polkit_authorized(sd_bus_message *m, const char *action)
 	 * time (dbus-daemon 1.14 does not report ProcessStartTime, so it
 	 * usually comes from procfs here) */
 	if (!have_start && read_pid_starttime((pid_t)pid, &starttime) < 0) {
-		fprintf(stderr, "lg-magicd: polkit: no start time for pid %u\n",
+		fprintf(stderr, "lgmagicd: polkit: no start time for pid %u\n",
 			(unsigned)pid);
 		return -1;
 	}
@@ -258,7 +258,7 @@ static int polkit_authorized(sd_bus_message *m, const char *action)
 			       "uid", "u", uid,
 			       action, 0, 0, "");
 	if (r < 0) {
-		fprintf(stderr, "lg-magicd: polkit: CheckAuthorization(%s): %s\n",
+		fprintf(stderr, "lgmagicd: polkit: CheckAuthorization(%s): %s\n",
 			action, error.message);
 		sd_bus_error_free(&error);
 		return -1;	/* polkitd missing or the call failed */
@@ -409,7 +409,7 @@ static int method_set_profile(sd_bus_message *m, void *userdata,
 	device_config_init(&r->dc);
 	if (daemon_config_load_remote(dd->config, r->identity, &r->dc,
 				      err, sizeof(err)) < 0)
-		fprintf(stderr, "lg-magicd: %s: profile reload failed: %s\n",
+		fprintf(stderr, "lgmagicd: %s: profile reload failed: %s\n",
 			r->identity, err);
 	remote_apply(r, dd);
 	return ok(m);
@@ -665,7 +665,7 @@ static int property_get_devices(sd_bus *bus, const char *path,
 	return r;
 }
 
-static const sd_bus_vtable lg_magic_vtable[] = {
+static const sd_bus_vtable lgmagic_vtable[] = {
 	SD_BUS_VTABLE_START(0),
 	SD_BUS_METHOD("ListDevices", "", "as", method_list_devices,
 		      SD_BUS_VTABLE_UNPRIVILEGED),
@@ -710,7 +710,7 @@ sd_bus *daemon_bus_open(struct daemon_devices *dd, char *err, size_t errsz)
 		return NULL;
 	}
 	r = sd_bus_add_object_vtable(bus, NULL, LG_BUS_PATH, LG_BUS_IFACE,
-				     lg_magic_vtable, dd);
+				     lgmagic_vtable, dd);
 	if (r < 0)
 		goto fail;
 	r = sd_bus_request_name(bus, LG_BUS_NAME, 0);

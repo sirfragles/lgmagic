@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- * cmd_scroll.c - `lg-magic scroll speed|sensitivity|reset`.
+ * cmd_scroll.c - `lgmagic scroll speed|sensitivity|reset`.
  *
  * All three go through the daemon (polkit profile-set).  reset restores
  * both the scroll speed and the sensitivity to the built-in defaults
@@ -17,9 +17,9 @@
 
 static int usage(FILE *out)
 {
-	fputs("Usage: lg-magic scroll speed MAC VALUE\n"
-	      "       lg-magic scroll sensitivity MAC VALUE\n"
-	      "       lg-magic scroll reset MAC\n", out);
+	fputs("Usage: lgmagic scroll speed MAC VALUE\n"
+	      "       lgmagic scroll sensitivity MAC VALUE\n"
+	      "       lgmagic scroll reset MAC\n", out);
 	return out == stderr;
 }
 
@@ -35,7 +35,7 @@ static int do_set(struct dbus_client *c, const char *method,
 	errno = 0;
 	v = strtod(text, &end);
 	if (errno != 0 || end == text || *end != '\0') {
-		fprintf(stderr, "lg-magic: invalid number '%s'\n", text);
+		fprintf(stderr, "lgmagic: invalid number '%s'\n", text);
 		return 1;
 	}
 	args[0].type = 's';

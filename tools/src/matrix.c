@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- * matrix.c - vec3 / mat3 / quaternion helpers for the lg-magic tools.
+ * matrix.c - vec3 / mat3 / quaternion helpers for the lgmagic tools.
  *
  * Double precision throughout: the Python scripts computed everything in
  * float64 (numpy / ahrs), and the golden-trace parity tests compare the C

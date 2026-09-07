@@ -1,4 +1,4 @@
-/*  This is part of lg_magic_dkms
+/*  This is part of lgmagic_dkms
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -19,7 +19,7 @@
 #include <linux/input.h>
 #include <linux/firmware.h>
 
-#include "lg_magic_airmouse.h"
+#include "lgmagic_airmouse.h"
 
 static int debug = 1;
 module_param(debug, int, 0644);
@@ -39,7 +39,7 @@ do { dev_err(dev, fmt, ##__VA_ARGS__); } while (0)
 
 static int raw_only = 1;
 module_param(raw_only, int, 0644);
-MODULE_PARM_DESC(raw_only, "Raw decoder mode: buttons + REL_WHEEL only, no airmouse (default 1; lg-magicd processes the input)");
+MODULE_PARM_DESC(raw_only, "Raw decoder mode: buttons + REL_WHEEL only, no airmouse (default 1; lgmagicd processes the input)");
 
 static int airmouse = 1;
 module_param(airmouse, int, 0644);
@@ -61,7 +61,7 @@ struct lgmagic_drvdata {
 	u16 last_btncode;
 	float gyro_acc[3];
 	int mode;
-	struct lg_magic_airmouse_calib calib;
+	struct lgmagic_airmouse_calib calib;
 };
 
 #define LGMAGIC_CODE_WHEEL 0x8044
@@ -239,14 +239,14 @@ static int lgmagic_load_fw(const char *fwname, struct device *dev, struct lgmagi
 	const struct firmware *fw;
 
 	ret = request_firmware(&fw, fwname, dev);
-	if (ret == 0 && fw->size>=sizeof(struct lg_magic_airmouse_calib)) {
+	if (ret == 0 && fw->size>=sizeof(struct lgmagic_airmouse_calib)) {
 		lgmagic_dev_info(dev, "Loading LG Magic calibration");
-		memcpy(&drvdata->calib, fw->data, sizeof(struct lg_magic_airmouse_calib));
+		memcpy(&drvdata->calib, fw->data, sizeof(struct lgmagic_airmouse_calib));
 		release_firmware(fw);
 		if (lgmagic_validate_calib(&drvdata->calib))
 		{
 			lgmagic_dev_warn(dev, "Calibration table isn't valid. Airmouse disabled");
-			memset(&drvdata->calib, 0, sizeof(struct lg_magic_airmouse_calib));
+			memset(&drvdata->calib, 0, sizeof(struct lgmagic_airmouse_calib));
 			return 0;
 		}
 	}
@@ -274,12 +274,12 @@ static int lgmagic_probe(struct hid_device *hdev, const struct hid_device_id *id
 
 	if (strlen(hdev->uniq)==17)
 	{
-		char addr_fw_name[] = "lg_magic_calib_XX_XX_XX_XX_XX_XX.bin";
-		lgmagic_sanitize_mac(hdev->uniq, addr_fw_name+sizeof("lg_magic_calib_")-1);
+		char addr_fw_name[] = "lgmagic_calib_XX_XX_XX_XX_XX_XX.bin";
+		lgmagic_sanitize_mac(hdev->uniq, addr_fw_name+sizeof("lgmagic_calib_")-1);
 		if (lgmagic_load_fw(addr_fw_name, &hdev->dev, drvdata)==0)
 			goto loaded;
 	}
-		lgmagic_load_fw("lg_magic_calib.bin", &hdev->dev, drvdata);
+		lgmagic_load_fw("lgmagic_calib.bin", &hdev->dev, drvdata);
 loaded:
 
 	drvdata->input_hid = devm_input_allocate_device(&hdev->dev);

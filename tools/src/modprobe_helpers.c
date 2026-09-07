@@ -80,16 +80,16 @@ int module_write_conf(const char *name, const char *params, char *err,
 		snprintf(err, errsz, "cannot create %s: %s", dir, strerror(errno));
 		return -1;
 	}
-	f = fopen("/etc/modprobe.d/lg-magic.conf", "w");
+	f = fopen("/etc/modprobe.d/lgmagic.conf", "w");
 	if (!f) {
-		snprintf(err, errsz, "cannot write /etc/modprobe.d/lg-magic.conf: "
+		snprintf(err, errsz, "cannot write /etc/modprobe.d/lgmagic.conf: "
 			 "%s (are you root?)", strerror(errno));
 		return -1;
 	}
 	if (fprintf(f, "options %s %s\n", name, params) < 0 ||
 	    fclose(f) != 0) {
 		snprintf(err, errsz, "write error on "
-			 "/etc/modprobe.d/lg-magic.conf");
+			 "/etc/modprobe.d/lgmagic.conf");
 		return -1;
 	}
 	return 0;

@@ -9,7 +9,7 @@
 #define LG_TOOLS_CALIB_H
 
 #include <stddef.h>
-#include <lg_magic_calib.h>	/* kernel/userspace-shared blob struct */
+#include <lgmagic_calib.h>	/* kernel/userspace-shared blob struct */
 
 struct calib {
 	double accel_bias[3];
@@ -39,9 +39,9 @@ int calib_save_json(const struct calib *c, const char *path, char *err, size_t e
 
 /* Convert to the 32-byte kernel firmware blob (alpha/mouse_k supplied). */
 void calib_to_blob(const struct calib *c, float alpha, float mouse_k,
-		   struct lg_magic_airmouse_calib *blob);
+		   struct lgmagic_airmouse_calib *blob);
 /* Same range checks as the kernel's lgmagic_validate_calib(); returns 0 if
  * valid, -1 otherwise (reason printed to stderr). */
-int calib_validate_blob(const struct lg_magic_airmouse_calib *blob);
+int calib_validate_blob(const struct lgmagic_airmouse_calib *blob);
 
 #endif /* LG_TOOLS_CALIB_H */

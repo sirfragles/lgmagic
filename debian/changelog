@@ -1,41 +1,8 @@
-lg-magic (2.0.1-1) unstable; urgency=medium
+lgmagic (0.0.1-1) unstable; urgency=medium
 
-  * Per-remote virtual keyboard/mouse pairs named after the device
-    identity ("lg-magicd keyboard/mouse <MAC>"), created before the grab.
-  * Held keys are released on a live remap - a map/profile change while a
-    key is held can no longer leave the old virtual key stuck.
-  * One calibration source per mode: the wizard writes only
-    /var/lib/lg-magic/<MAC>/calibration.json in daemon mode; the firmware
-    blob stays for the legacy kernel airmouse (raw_only=0).
-  * Device identities are validated on the bus (InvalidArguments) and the
-    ApiVersion property is exposed; state writes use O_EXCL tmp files;
-    the IMU udev rule is restricted to the LG vendor/product.
+  * Fresh start: the project is renamed to lgmagic (packages, binaries,
+    kernel module, service, paths) and the version line restarts at
+    0.0.1.  The GitHub repository variable VERSION is the single
+    source of truth, stamped by scripts/sync-version.sh.
 
- -- Ilya Chelyadin <sirfragles@users.noreply.github.com>  Mon, 07 Sep 2026 12:00:00 +0000
-
-lg-magic (2.0-1) unstable; urgency=medium
-
-  * v2.0: system daemon with full input takeover and polkit-gated writes.
-    - lg-magicd: EVIOCGRAB of the remote, profiles / calibration /
-      button mapping / airmouse pipeline, one virtual mouse + keyboard
-      (uinput), sd-bus interface org.lgmagic.Manager
-    - polkit actions org.lgmagic.{set-config,set-profile,reload};
-      the daemon is enabled by the setup wizard, not automatically
-    - kernel: raw_only=1 by default (raw decoder; wheel as REL_WHEEL,
-      no kernel airmouse); raw_only=0 restores the v1 behaviour
-    - CLI: device / profile / button / scroll / diagnose subcommands
-      over a dependency-free D-Bus client (lg-magic stays libc/libm)
-    - configuration moved from JSON to TOML (lg-magic config migrate)
-    - per-device state in /etc/lg-magic/devices.d and /var/lib/lg-magic
-
- -- Ilya Chelyadin <sirfragles@users.noreply.github.com>  Sat, 06 Sep 2026 20:00:00 +0000
-
-lg-magic (1.0-1) unstable; urgency=medium
-
-  * Initial release: DKMS kernel module + lg-magic userspace tools.
-    - C port of the Python tools as a single multi-call binary (no
-      Python runtime dependencies)
-    - lg-magic setup: interactive configuration and calibration wizard
-    - udev rules for the IMU evdev device, hidraw and uinput
-
- -- Ilya Chelyadin <sirfragles@users.noreply.github.com>  Sat, 06 Sep 2026 12:00:00 +0000
+ -- Ilya Chelyadin <sirfragles@users.noreply.github.com>  Mon, 07 Sep 2026 14:10:35 +0200

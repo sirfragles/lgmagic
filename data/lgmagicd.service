@@ -6,13 +6,13 @@ Wants=bluetooth.target
 [Service]
 Type=dbus
 BusName=org.lgmagic
-ExecStart=/usr/libexec/lg-magicd
+ExecStart=/usr/libexec/lgmagicd
 ExecReload=/bin/kill -HUP $MAINPID
 Restart=on-failure
 RestartSec=2
 # bez DevicePolicy=closed — zrywa enumerację/inotify /dev/input
 ProtectSystem=full
-ReadWritePaths=/var/lib/lg-magic
+ReadWritePaths=/var/lib/lgmagic
 ProtectHome=true
 PrivateTmp=true
 NoNewPrivileges=true

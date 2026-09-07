@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- * dbus_client.c - minimal zero-dependency D-Bus client for the lg-magic
+ * dbus_client.c - minimal zero-dependency D-Bus client for the lgmagic
  * CLI (portable).
  *
  * Hand-implements the D-Bus wire protocol subset the CLI needs:
@@ -14,7 +14,7 @@
  *   - one call in flight, 25 s timeout, no signals/introspection
  *
  * Everything is little-endian (the native order of every supported host)
- * and the implementation is pure libc - `ldd lg-magic` stays clean.
+ * and the implementation is pure libc - `ldd lgmagic` stays clean.
  *
  * Wire format notes (D-Bus specification, Message Format):
  *   - fixed 16-byte header: 'l', type, flags, version, body len u32,
@@ -439,7 +439,7 @@ static struct dbus_value *rd_value(struct rd *r, const char *sig)
 		r->p += slen;
 		r->off += slen;
 		rd_u8(r);	/* the terminating NUL */
-		/* only v(s) is used by the lg-magic interface */
+		/* only v(s) is used by the lgmagic interface */
 		if (strcmp(inner, "s")) {
 			r->err = 1;
 			goto fail;

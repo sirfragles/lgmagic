@@ -3,7 +3,7 @@
  * profiles.h - per-device profiles and button maps (portable).
  *
  * The daemon's per-remote configuration comes from
- * /etc/lg-magic/devices.d/<MAC>.toml:
+ * /etc/lgmagic/devices.d/<MAC>.toml:
  *
  *     profile = "default"                     # active profile
  *     calib = "/path/to/calibration.json"     # optional override

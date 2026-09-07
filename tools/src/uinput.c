@@ -210,7 +210,7 @@ int uinput_open(char *err, size_t errsz)
 {
 	struct uinput_spec s;
 
-	uinput_spec_init(&s, "lg-magic mouse");
+	uinput_spec_init(&s, "lgmagic mouse");
 	s.vendor = 0x1;		/* the exact v1 UI_DEV_SETUP values */
 	s.product = 0x1;
 	uinput_spec_rel(&s, REL_X);

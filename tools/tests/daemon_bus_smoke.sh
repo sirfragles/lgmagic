@@ -1,7 +1,7 @@
 #!/bin/sh
 # daemon_bus_smoke.sh - bus + polkit smoke WITHOUT devices (Phase 4 gate).
 #
-# Starts a throwaway system bus + polkitd, runs lg-magicd with
+# Starts a throwaway system bus + polkitd, runs lgmagicd with
 # --no-uinput (no /dev/uinput is needed), and asserts:
 #   1. device list               -> empty, rc 0
 #   2. device status UNKNOWN     -> NotFound
@@ -12,14 +12,14 @@
 # and SKIPs when dbus-daemon/polkitd are not installed.
 set -u
 
-ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd)
+ROOT=$(CDPATH='' cd -- "$(dirname -- "$0")/../.." && pwd)
 cd "$ROOT/tools" || exit 1
 
 command -v dbus-daemon >/dev/null 2>&1 || { echo "SKIP: no dbus-daemon"; exit 0; }
 POLKITD=$(command -v polkitd 2>/dev/null || true)
 [ -n "$POLKITD" ] || POLKITD=/usr/lib/polkit-1/polkitd
 [ -x "$POLKITD" ] || { echo "SKIP: no polkitd"; exit 0; }
-[ "`id -u`" = 0 ] || { echo "SKIP: not root (needs a system bus)"; exit 0; }
+[ "$(id -u)" = 0 ] || { echo "SKIP: not root (needs a system bus)"; exit 0; }
 
 TMP=$(mktemp -d) || exit 1
 CFG=$TMP/config
@@ -29,6 +29,7 @@ DBUS_PID=
 POLKIT_PID=
 DAEMON_PID=
 
+# shellcheck disable=SC2317 # cleanup() is invoked only via the trap below
 cleanup() {
 	[ -n "$DAEMON_PID" ] && kill "$DAEMON_PID" 2>/dev/null
 	[ -n "$POLKIT_PID" ] && kill "$POLKIT_PID" 2>/dev/null
@@ -63,7 +64,7 @@ POLKIT_PID=$!
 sleep 1
 
 # The daemon without devices (and without uinput).
-./lg-magicd --no-uinput --config-root "$CFG" --state-dir "$STATE" \
+./lgmagicd --no-uinput --config-root "$CFG" --state-dir "$STATE" \
 	--debug >"$TMP/daemon.log" 2>&1 &
 DAEMON_PID=$!
 i=0
@@ -73,7 +74,7 @@ while ! grep -q "bus name org.lgmagic acquired" "$TMP/daemon.log"; do
 	[ "$i" -lt 50 ] || fail "daemon did not acquire the bus: $(tail -5 "$TMP/daemon.log")"
 done
 
-BIN=./lg-magic
+BIN=./lgmagic
 
 # 1. empty device list
 out=$("$BIN" device list) || fail "device list: rc=$?"

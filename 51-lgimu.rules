@@ -4,7 +4,7 @@ SUBSYSTEM=="input", KERNEL=="event*", ATTRS{name}=="*IMU*", \
     ATTRS{id/vendor}=="000f", ATTRS{id/product}=="3412", \
     MODE="0660", GROUP="input", TAG+="uaccess"
 
-# hidraw access to the remote itself (lg-magic analyze); HID_ID depends on
+# hidraw access to the remote itself (lgmagic analyze); HID_ID depends on
 # udev features - if it is missing, the analyzer falls back to sudo.
 SUBSYSTEM=="hidraw", KERNEL=="hidraw*", ENV{HID_ID}=="0005:00000F0000003412", \
     MODE="0660", GROUP="input", TAG+="uaccess"

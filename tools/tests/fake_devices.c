@@ -15,7 +15,7 @@
  *             --kbd PATH --wheel N        REL_WHEEL N
  *             --imu PATH --gyro X,Y,Z     ABS_RX/RY/RZ + MSC counter
  *   watch   read and print frames from an evdev node (e.g. the daemon's
- *           per-remote "lg-magicd keyboard <identity>" outputs).
+ *           per-remote "lgmagicd keyboard <identity>" outputs).
  *
  * The devices carry vendor 0x000f/product 0x3412 and the exact kernel
  * names, so the daemon's pairing (pairing_is_keyboard/_imu) sees them

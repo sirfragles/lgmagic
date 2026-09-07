@@ -1,9 +1,9 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- * cmd_calibrate.c - `lg-magic calibrate` subcommand (scripts/calibrate.py).
+ * cmd_calibrate.c - `lgmagic calibrate` subcommand (scripts/calibrate.py).
  *
- *   lg-magic calibrate CSV OUTPUT_JSON --accel   fit bias + 3x3 matrix
- *   lg-magic calibrate CSV OUTPUT_JSON --gyro    mean gyro bias
+ *   lgmagic calibrate CSV OUTPUT_JSON --accel   fit bias + 3x3 matrix
+ *   lgmagic calibrate CSV OUTPUT_JSON --gyro    mean gyro bias
  *
  * Deliberate fix vs Python: a --gyro-only run writes an identity accel
  * correction instead of empty arrays (the empty arrays broke --ahrs; the
@@ -20,9 +20,9 @@
 
 static void usage(FILE *out)
 {
-	fputs("Usage: lg-magic calibrate CSV OUTPUT_JSON (--accel | --gyro)\n"
+	fputs("Usage: lgmagic calibrate CSV OUTPUT_JSON (--accel | --gyro)\n"
 	      "\n"
-	      "  CSV         IMU recording from 'lg-magic imu --csv'\n"
+	      "  CSV         IMU recording from 'lgmagic imu --csv'\n"
 	      "  OUTPUT_JSON calibration file (accel bias/matrix, gyro bias/scale)\n"
 	      "\n"
 	      "  --accel     fit accelerometer bias + 3x3 matrix (Levenberg-\n"
@@ -57,7 +57,7 @@ int cmd_calibrate(int argc, char **argv)
 		else if (npos < 2)
 			pos[npos++] = argv[i];
 		else {
-			fprintf(stderr, "lg-magic calibrate: unexpected "
+			fprintf(stderr, "lgmagic calibrate: unexpected "
 				"argument '%s'\n", argv[i]);
 			usage(stderr);
 			return 1;
@@ -92,7 +92,7 @@ int cmd_calibrate(int argc, char **argv)
 		}
 		a = malloc((size_t)n * sizeof(*a));
 		if (!a) {
-			fprintf(stderr, "lg-magic: out of memory\n");
+			fprintf(stderr, "lgmagic: out of memory\n");
 			free(samples);
 			return 1;
 		}
@@ -117,7 +117,7 @@ int cmd_calibrate(int argc, char **argv)
 	free(samples);
 
 	if (calib_save_json(&c, out_path, err, sizeof(err)) < 0) {
-		fprintf(stderr, "lg-magic: %s\n", err);
+		fprintf(stderr, "lgmagic: %s\n", err);
 		return 1;
 	}
 	printf("Calibration saved to %s\n", out_path);

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- * cmd_button.c - `lg-magic button list|map|reset`.
+ * cmd_button.c - `lgmagic button list|map|reset`.
  *
  * list reads the world-readable device file directly (no daemon);
  * map/reset go through the daemon (polkit modify-input).  Keycodes are
@@ -17,9 +17,9 @@
 
 static int usage(FILE *out)
 {
-	fputs("Usage: lg-magic button list [MAC]\n"
-	      "       lg-magic button map MAC KEY_FROM KEY_TO\n"
-	      "       lg-magic button reset MAC\n", out);
+	fputs("Usage: lgmagic button list [MAC]\n"
+	      "       lgmagic button map MAC KEY_FROM KEY_TO\n"
+	      "       lgmagic button reset MAC\n", out);
 	return out == stderr;
 }
 
@@ -31,7 +31,7 @@ static int do_list(const char *mac)
 	size_t i;
 
 	if (cmd_load_device(mac, &dc, err, sizeof(err)) < 0) {
-		fprintf(stderr, "lg-magic: %s: %s\n", mac, err);
+		fprintf(stderr, "lgmagic: %s: %s\n", mac, err);
 		return -1;
 	}
 	p = profile_find(&dc, dc.profile);

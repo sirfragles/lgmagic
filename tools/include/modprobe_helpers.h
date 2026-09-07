@@ -13,7 +13,7 @@ int module_is_loaded(const char *name);
 int module_load(const char *name, char *err, size_t errsz);
 int module_reload(const char *name, char *err, size_t errsz);
 
-/* Write "options <name> <params>" to /etc/modprobe.d/lg-magic.conf. */
+/* Write "options <name> <params>" to /etc/modprobe.d/lgmagic.conf. */
 int module_write_conf(const char *name, const char *params, char *err, size_t errsz);
 
 /* Check dmesg for a string (used to verify the calibration was loaded).

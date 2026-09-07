@@ -1,11 +1,11 @@
 #!/bin/sh
 # SPDX-License-Identifier: GPL-2.0-or-later
 #
-# daemon_e2e.sh - full bus + polkit e2e for lg-magicd (Phase 4 gate).
+# daemon_e2e.sh - full bus + polkit e2e for lgmagicd (Phase 4 gate).
 #
 # Runs on a Linux CI runner as root with /dev/uinput, dbus-daemon and
 # polkitd.  SKIPs (exit 0) when any of those is missing.  Starts a
-# throwaway system bus, a fake remote (uinput), and lg-magicd, then
+# throwaway system bus, a fake remote (uinput), and lgmagicd, then
 # drives the whole surface through the CLI:
 #
 #   - device list / status (unprivileged reads, polkit-free - also as
@@ -20,16 +20,23 @@
 #     an invalid calibration file is rejected (old one kept, daemon
 #     stays alive)
 #   - profile/button list read the files directly (world-readable)
-#   - standalone `lg-magic imu` in parallel (IMU not grabbed)
+#   - standalone `lgmagic imu` in parallel (IMU not grabbed)
 #   - reconnect + grab release after SIGKILL, SIGTERM and SIGINT
+#
+# `cond && cmd || true` and `cond && ... || fail ...` are deliberate
+# throughout: under `set -e` the || true arms absorb the nonzero exit of
+# reaping already-dead daemon processes in cleanup(), and fail() cannot
+# be reached when the checked condition holds.  SC2015 (info) warns about
+# the idiom generically; it is not a bug here.
+# shellcheck disable=SC2015
 set -eu
 
-SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
-TOOLS_DIR=$(CDPATH= cd -- "$SCRIPT_DIR/.." && pwd)
-BIN=$TOOLS_DIR/lg-magic
-DAEMON=$TOOLS_DIR/lg-magicd
+SCRIPT_DIR=$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd)
+TOOLS_DIR=$(CDPATH='' cd -- "$SCRIPT_DIR/.." && pwd)
+BIN=$TOOLS_DIR/lgmagic
+DAEMON=$TOOLS_DIR/lgmagicd
 FAKE=$SCRIPT_DIR/fake_devices
-REPO_ROOT=$(CDPATH= cd -- "$SCRIPT_DIR/../.." && pwd)
+REPO_ROOT=$(CDPATH='' cd -- "$SCRIPT_DIR/../.." && pwd)
 
 # 0. prerequisites
 if [ ! -e /dev/uinput ]; then
@@ -41,7 +48,7 @@ POLKITD=$(command -v polkitd 2>/dev/null || true)
 [ -n "$POLKITD" ] || POLKITD=/usr/lib/polkit-1/polkitd
 [ -x "$POLKITD" ] || { echo "SKIP: no polkitd"; exit 0; }
 command -v dbus-send >/dev/null 2>&1 || { echo "SKIP: no dbus-send"; exit 0; }
-[ "`id -u`" = 0 ] || { echo "SKIP: not root (needs a system bus)"; exit 0; }
+[ "$(id -u)" = 0 ] || { echo "SKIP: not root (needs a system bus)"; exit 0; }
 [ ! -e /run/dbus/system_bus_socket ] || {
 	echo "SKIP: a system bus is already running (cannot install the policy)";
 	exit 0;
@@ -100,7 +107,7 @@ find_node()
 }
 
 # like find_node, but matches by NAME PREFIX - the daemon's virtual
-# devices carry the identity ("lg-magicd keyboard unknown"), while the
+# devices carry the identity ("lgmagicd keyboard unknown"), while the
 # fake devices need the exact match (a prefix would collide
 # "LG Magic Remote" with "LG Magic Remote IMU")
 find_node_prefix()
@@ -231,8 +238,8 @@ scroll_speed = 3.0
 "KEY_UP" = "KEY_HOME"
 EOF
 
-export LG_MAGIC_CONFIG_ROOT=$CFG
-export LG_MAGIC_STATE_DIR=$STATE
+export LGMAGIC_CONFIG_ROOT="$CFG"
+export LGMAGIC_STATE_DIR="$STATE"
 
 # ------------------------------------------------------------------ #
 # Fake remote + daemon (bus + uinput)                                #
@@ -254,10 +261,10 @@ wait_for "daemon startup" "virtual devices ready" "$TMP/daemon.log"
 wait_for "daemon bus" "bus name org.lgmagic acquired" "$TMP/daemon.log"
 wait_for "daemon takeover" "remote unknown: keyboard" "$TMP/daemon.log"
 
-OUTK=$(find_node_prefix "lg-magicd keyboard")
-OUTM=$(find_node_prefix "lg-magicd mouse")
-[ -n "$OUTK" ] || fail "'lg-magicd keyboard' output node not found"
-[ -n "$OUTM" ] || fail "'lg-magicd mouse' output node not found"
+OUTK=$(find_node_prefix "lgmagicd keyboard")
+OUTM=$(find_node_prefix "lgmagicd mouse")
+[ -n "$OUTK" ] || fail "'lgmagicd keyboard' output node not found"
+[ -n "$OUTM" ] || fail "'lgmagicd mouse' output node not found"
 echo "daemon: outk=$OUTK outm=$OUTM"
 
 # ------------------------------------------------------------------ #
@@ -473,7 +480,7 @@ expect_emit "new calibration" "$OUTM" --imu "$IMU" --gyro 0,0,100 \
 	"REL_X 5$" 1500
 
 # ------------------------------------------------------------------ #
-# 8. Standalone `lg-magic imu` in parallel (IMU not grabbed)         #
+# 8. Standalone `lgmagic imu` in parallel (IMU not grabbed)         #
 # ------------------------------------------------------------------ #
 
 # The CSV is written when the CLI exits, so end it explicitly:

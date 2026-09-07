@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- * hidraw.c - hidraw access to the LG Magic Remote (scripts/lg_magic.py).
+ * hidraw.c - hidraw access to the LG Magic Remote (scripts/lgmagic.py).
  *
- * The output of hidraw_run() replicates lg_magic.py line by line,
+ * The output of hidraw_run() replicates lgmagic.py line by line,
  * including its quirks (the "Button:" line printed twice - once with the
  * code in decimal, once in hex; button code parsed big-endian; the six
  * points of interest labelled POI1..3/ACCEL_X..Z). Auto-detection by
@@ -19,7 +19,7 @@
 #include <unistd.h>
 #include <linux/hidraw.h>
 
-/* Expected payload sizes (excluding the report ID) - lg_magic.py. */
+/* Expected payload sizes (excluding the report ID) - lgmagic.py. */
 static int expected_size(unsigned char report_id)
 {
 	switch (report_id) {
@@ -30,7 +30,7 @@ static int expected_size(unsigned char report_id)
 	}
 }
 
-/* BUTTON_CODES from lg_magic.py, verbatim. */
+/* BUTTON_CODES from lgmagic.py, verbatim. */
 static const struct {
 	unsigned code;
 	const char *name;
@@ -185,7 +185,7 @@ int hidraw_run(const char *path)
 
 	fd = open(path, O_RDONLY);
 	if (fd < 0) {
-		fprintf(stderr, "lg-magic: cannot open %s: %s\n", path,
+		fprintf(stderr, "lgmagic: cannot open %s: %s\n", path,
 			strerror(errno));
 		return -1;
 	}
@@ -197,7 +197,7 @@ int hidraw_run(const char *path)
 		if (rv < 0) {
 			if (errno == EINTR)
 				break;	/* Ctrl+C: clean end */
-			fprintf(stderr, "lg-magic: read error on %s: %s\n",
+			fprintf(stderr, "lgmagic: read error on %s: %s\n",
 				path, strerror(errno));
 			close(fd);
 			return -1;
@@ -212,7 +212,7 @@ int hidraw_run(const char *path)
 			if (rv < 0) {
 				if (errno == EINTR)
 					break;
-				fprintf(stderr, "lg-magic: read error on "
+				fprintf(stderr, "lgmagic: read error on "
 					"%s: %s\n", path, strerror(errno));
 				close(fd);
 				return -1;
@@ -264,8 +264,8 @@ static int scan_remotes(int (*cb)(const char *path, void *ctx), void *ctx)
 		if (fd < 0)
 			continue;
 		if (ioctl(fd, HIDIOCGRAWINFO, &info) == 0 &&
-		    (unsigned)info.vendor == LG_MAGIC_VID &&
-		    (unsigned)info.product == LG_MAGIC_PID) {
+		    (unsigned)info.vendor == LGMAGIC_VID &&
+		    (unsigned)info.product == LGMAGIC_PID) {
 			found++;
 			if (cb && cb(path, ctx) != 0) {
 				close(fd);
@@ -292,7 +292,7 @@ int hidraw_find_remote(char *path, size_t pathsz, char *err, size_t errsz)
 	buf[0] = '\0';
 	if (scan_remotes(pick_first, buf) == 0) {
 		snprintf(err, errsz, "no LG Magic Remote hidraw device found "
-			 "(VID %04x PID %04x)", LG_MAGIC_VID, LG_MAGIC_PID);
+			 "(VID %04x PID %04x)", LGMAGIC_VID, LGMAGIC_PID);
 		return -1;
 	}
 	snprintf(path, pathsz, "%s", buf);

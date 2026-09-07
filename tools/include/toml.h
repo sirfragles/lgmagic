@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- * toml.h - minimal TOML parser/writer for the lg-magic tools (portable).
+ * toml.h - minimal TOML parser/writer for the lgmagic tools (portable).
  *
  * v2 replaces the JSON config with TOML.  This is a deliberate subset:
  *   - bare / quoted / dotted keys, [table] and [a.b] headers,

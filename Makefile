@@ -1,12 +1,12 @@
-# Top-level Makefile for lg-magic (kernel module + userspace tools).
+# Top-level Makefile for lgmagic (kernel module + userspace tools).
 #
 # Targets:
 #   all             - build the kernel module and the userspace tools (default)
 #   modules         - build only the kernel module (used by DKMS)
-#   tools           - build only the userspace tools (lg-magic + on Linux
-#                     lg-magicd and the fake-device e2e harness)
+#   tools           - build only the userspace tools (lgmagic + on Linux
+#                     lgmagicd and the fake-device e2e harness)
 #   check           - build the tools and run the test suite
-#   install         - install lg-magic, lg-magicd (Linux), the systemd unit,
+#   install         - install lgmagic, lgmagicd (Linux), the systemd unit,
 #                     tmpfiles, polkit policy, D-Bus config, config.toml and
 #                     the udev rule
 #   install-firmware- install a calibration blob into /lib/firmware (opt-in)
@@ -37,7 +37,7 @@ LIBEXECDIR ?= $(PREFIX)/libexec
 UDEV_DIR ?= /etc/udev/rules.d
 
 # Calibration blob for the install-firmware target.
-CALIB ?= lg_magic_calib.bin
+CALIB ?= lgmagic_calib.bin
 
 all: modules tools
 
@@ -52,20 +52,20 @@ check: tools
 
 install: tools
 	install -d $(DESTDIR)$(PREFIX)/bin $(DESTDIR)$(LIBEXECDIR) \
-		$(DESTDIR)$(UDEV_DIR) $(DESTDIR)/etc/lg-magic \
+		$(DESTDIR)$(UDEV_DIR) $(DESTDIR)/etc/lgmagic \
 		$(DESTDIR)$(UNIT_DIR) $(DESTDIR)$(TMPFILES_DIR) \
 		$(DESTDIR)/usr/share/polkit-1/actions \
 		$(DESTDIR)/usr/share/dbus-1/system.d
-	install -m 0755 tools/lg-magic $(DESTDIR)$(PREFIX)/bin/
-	@if [ -x tools/lg-magicd ]; then \
-		install -m 0755 tools/lg-magicd $(DESTDIR)$(LIBEXECDIR)/; \
+	install -m 0755 tools/lgmagic $(DESTDIR)$(PREFIX)/bin/
+	@if [ -x tools/lgmagicd ]; then \
+		install -m 0755 tools/lgmagicd $(DESTDIR)$(LIBEXECDIR)/; \
 	fi
 	install -m 0644 51-lgimu.rules $(DESTDIR)$(UDEV_DIR)/
-	install -m 0644 data/lg-magicd.service $(DESTDIR)$(UNIT_DIR)/
-	install -m 0644 data/lg-magic.tmpfiles $(DESTDIR)$(TMPFILES_DIR)/lg-magic.conf
+	install -m 0644 data/lgmagicd.service $(DESTDIR)$(UNIT_DIR)/
+	install -m 0644 data/lgmagic.tmpfiles $(DESTDIR)$(TMPFILES_DIR)/lgmagic.conf
 	install -m 0644 data/org.lgmagic.policy $(DESTDIR)/usr/share/polkit-1/actions/
 	install -m 0644 data/org.lgmagic.conf $(DESTDIR)/usr/share/dbus-1/system.d/
-	install -m 0644 data/config.toml $(DESTDIR)/etc/lg-magic/
+	install -m 0644 data/config.toml $(DESTDIR)/etc/lgmagic/
 
 # Deliberately opt-in: a zeroed blob would pass the kernel's validation and
 # silently disable the airmouse, so firmware is never installed by default.
@@ -74,14 +74,14 @@ install-firmware:
 	install -m 0644 $(CALIB) $(DESTDIR)/lib/firmware/
 
 uninstall:
-	rm -f $(DESTDIR)$(PREFIX)/bin/lg-magic
-	rm -f $(DESTDIR)$(LIBEXECDIR)/lg-magicd
+	rm -f $(DESTDIR)$(PREFIX)/bin/lgmagic
+	rm -f $(DESTDIR)$(LIBEXECDIR)/lgmagicd
 	rm -f $(DESTDIR)$(UDEV_DIR)/51-lgimu.rules
-	rm -f $(DESTDIR)$(UNIT_DIR)/lg-magicd.service
-	rm -f $(DESTDIR)$(TMPFILES_DIR)/lg-magic.conf
+	rm -f $(DESTDIR)$(UNIT_DIR)/lgmagicd.service
+	rm -f $(DESTDIR)$(TMPFILES_DIR)/lgmagic.conf
 	rm -f $(DESTDIR)/usr/share/polkit-1/actions/org.lgmagic.policy
 	rm -f $(DESTDIR)/usr/share/dbus-1/system.d/org.lgmagic.conf
-	rm -f $(DESTDIR)/etc/lg-magic/config.toml
+	rm -f $(DESTDIR)/etc/lgmagic/config.toml
 
 clean:
 	# Kernel clean needs KDIR; without kernel headers (containers, CI

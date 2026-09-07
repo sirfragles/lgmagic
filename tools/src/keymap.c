@@ -63,7 +63,7 @@ const char *keymap_code_to_name(int code)
 }
 
 /* ------------------------------------------------------------------ */
-/* LG button codes (lg_magic.py BUTTON_CODES, verbatim)                */
+/* LG button codes (lgmagic.py BUTTON_CODES, verbatim)                */
 /* ------------------------------------------------------------------ */
 
 static const struct {
@@ -134,7 +134,7 @@ int keymap_lg_name_to_code(const char *name)
 }
 
 /* ------------------------------------------------------------------ */
-/* Kernel default decode (lg_btn_map in lg_magic_main.c)               */
+/* Kernel default decode (lg_btn_map in lgmagic_main.c)               */
 /* ------------------------------------------------------------------ */
 
 /* The kernel's lg_btn_map has two WHEEL_PRESS entries: KEY_ENTER and

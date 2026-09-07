@@ -1,11 +1,11 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- * matrix.h - vec3 / mat3 / quaternion helpers for the lg-magic tools.
+ * matrix.h - vec3 / mat3 / quaternion helpers for the lgmagic tools.
  *
  * Quaternion convention is [w, x, y, z], matching the Python `ahrs`
  * library used by the original scripts (scripts/display_imu.py).
  *
- * This file is part of lg-magic (the C port of the Python scripts).
+ * This file is part of lgmagic (the C port of the Python scripts).
  */
 #ifndef LG_TOOLS_MATRIX_H
 #define LG_TOOLS_MATRIX_H

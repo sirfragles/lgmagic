@@ -1,4 +1,4 @@
-# Userspace tools: a single multi-call binary `lg-magic` + unit tests.
+# Userspace tools: a single multi-call binary `lgmagic` + unit tests.
 #
 # The binary itself is Linux-only (evdev/hidraw/uinput); the `check` target
 # builds and runs the portable module tests, which also pass on macOS.
@@ -7,7 +7,7 @@ CC      ?= cc
 CFLAGS  += -O2 -Wall -Wextra -std=gnu11 -D_GNU_SOURCE -Iinclude -I../include
 LDLIBS  += -lm
 
-BIN := lg-magic
+BIN := lgmagic
 
 SRC := \
 	src/main.c src/config.c \
@@ -39,10 +39,10 @@ TEST_BINS := $(TEST_DIR)/test_json $(TEST_DIR)/test_matrix $(TEST_DIR)/test_csv 
 
 # Linux-only: the system daemon and the fake-device e2e harness.
 # (GNU make would use ifeq; a shell guard keeps BSD make on macOS happy.)
-DAEMON_BIN := lg-magicd
+DAEMON_BIN := lgmagicd
 FAKE_BIN := $(TEST_DIR)/fake_devices
 
-# Only the daemon links libsystemd (sd-bus); `lg-magic` keeps libc/libm
+# Only the daemon links libsystemd (sd-bus); `lgmagic` keeps libc/libm
 # only (asserted by ldd in CI).  `!=` works in BSD make and GNU make 4+.
 SYSTEMD_CFLAGS != pkg-config --cflags libsystemd 2>/dev/null || true
 SYSTEMD_LIBS != pkg-config --libs libsystemd 2>/dev/null || echo -lsystemd
@@ -129,6 +129,8 @@ check: $(TEST_BINS)
 		if ./$$t; then echo "PASS $$t"; else echo "FAIL $$t"; fail=1; fi; \
 	done; \
 	if [ -x $(BIN) ]; then sh tests/cli_smoke.sh ./$(BIN) || fail=1; fi; \
+	sh tests/check_naming.sh || fail=1; \
+	sh tests/check_version_sync.sh || fail=1; \
 	exit $$fail
 
 clean:

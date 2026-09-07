@@ -122,7 +122,7 @@ static void test_device_toml(void)
 {
 	static const char *doc =
 		"profile = \"tv\"\n"
-		"calib = \"/var/lib/lg-magic/x/calibration.json\"\n"
+		"calib = \"/var/lib/lgmagic/x/calibration.json\"\n"
 		"airmouse = false\n"
 		"unknown_key = \"ignored\"\n"
 		"\n"
@@ -148,7 +148,7 @@ static void test_device_toml(void)
 	CHECK(device_config_from_toml(root, &dc, err, sizeof(err)) == 0,
 	      "device config from TOML succeeds");
 	CHECK_STR_EQ(dc.profile, "tv", "active profile from the file");
-	CHECK_STR_EQ(dc.calib, "/var/lib/lg-magic/x/calibration.json",
+	CHECK_STR_EQ(dc.calib, "/var/lib/lgmagic/x/calibration.json",
 		     "calib path from the file");
 	CHECK(dc.airmouse == 0 && dc.has_airmouse == 1,
 	      "airmouse = false parsed with the explicit flag");

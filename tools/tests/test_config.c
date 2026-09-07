@@ -2,18 +2,18 @@
  *
  * test_config.c - unit tests for the user configuration (config.h).
  *
- * Precedence: built-in defaults < /etc/lg-magic/config.toml <
- * ~/.config/lg-magic/config.toml < --config FILE.  The test points HOME at
+ * Precedence: built-in defaults < /etc/lgmagic/config.toml <
+ * ~/.config/lgmagic/config.toml < --config FILE.  The test points HOME at
  * a scratch directory so it never touches (or depends on) the real user
  * config, and uses a scratch extra_path for the --config slot.  Only a
- * system-wide /etc/lg-magic/config.toml on the host would leak in (there
+ * system-wide /etc/lgmagic/config.toml on the host would leak in (there
  * is no way to override that slot); the tests assume none is present.
  *
  * Covers:
  *  - built-in defaults and "not explicit" after config_load(NULL);
  *  - config_set_key: numeric/string keys, unknown key and bad value -> -1,
  *    explicit tracking;
- *  - config_save_user writes ~/.config/lg-magic/config.toml and a fresh
+ *  - config_save_user writes ~/.config/lgmagic/config.toml and a fresh
  *    config_load(NULL) picks it up and marks the keys explicit;
  *  - extra_path overrides the user file; unknown keys in any file are
  *    ignored; a malformed file is skipped with a warning (defaults kept);
@@ -123,9 +123,9 @@ static void test_save_load_user(void)
 	      "config_save_user writes the user config");
 	config_free(cfg);
 
-	snprintf(path, sizeof(path), "%s/.config/lg-magic/config.toml",
+	snprintf(path, sizeof(path), "%s/.config/lgmagic/config.toml",
 		 scratch);
-	CHECK(fopen(path, "rb") != NULL, "~/.config/lg-magic/config.toml "
+	CHECK(fopen(path, "rb") != NULL, "~/.config/lgmagic/config.toml "
 	       "exists after saving");
 	root = toml_load_file(path, &terr, &line);
 	CHECK(root != NULL, "saved user config is valid TOML");

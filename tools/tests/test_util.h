@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later
  *
- * test_util.h - minimal assertion harness for the lg-magic unit tests.
+ * test_util.h - minimal assertion harness for the lgmagic unit tests.
  *
  * Plain C11, zero external dependencies.  Each test file is a standalone
  * program that prints one "PASS <msg>" / "FAIL <msg> [file:line]" line per

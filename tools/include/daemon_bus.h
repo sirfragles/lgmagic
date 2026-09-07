@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- * daemon_bus.h - lg-magicd sd-bus interface (Linux only, links libsystemd).
+ * daemon_bus.h - lgmagicd sd-bus interface (Linux only, links libsystemd).
  *
  * One object: org.lgmagic / /org/lgmagic/Manager / org.lgmagic.Manager.
  * Read methods (ListDevices, GetStatus, the properties) are unprivileged;
@@ -33,7 +33,7 @@
 
 /* The API version advertised on the ApiVersion property (clients can
  * check it instead of guessing method availability). */
-#define LG_API_VERSION "2.0"
+#define LG_API_VERSION "0.0"
 
 /* D-Bus error names (org.lgmagic.Error.*). */
 #define LG_ERROR_NOT_AUTHORIZED "org.lgmagic.Error.NotAuthorized"

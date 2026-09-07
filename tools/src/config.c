@@ -1,15 +1,16 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- * config.c - lg-magic user configuration.
+ * config.c - lgmagic user configuration.
  *
- * Precedence: built-in defaults < /etc/lg-magic/config.toml <
- * ~/.config/lg-magic/config.toml < --config FILE < CLI flags.
+ * Precedence: built-in defaults < /etc/lgmagic/config.toml <
+ * ~/.config/lgmagic/config.toml < --config FILE < CLI flags.
  * Files are TOML, parsed with our own toml.c; unknown keys are ignored,
  * malformed files produce a warning and are skipped.  A v1 config.json
  * next to a missing config.toml produces a migrate hint.
  */
 #include "config.h"
 
+#include "build_version.h"
 #include "toml.h"
 
 #include <errno.h>
@@ -19,11 +20,11 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
-#define CFG_SYSTEM_PATH "/etc/lg-magic/config.toml"
-#define CFG_USER_DIR "/.config/lg-magic"
+#define CFG_SYSTEM_PATH "/etc/lgmagic/config.toml"
+#define CFG_USER_DIR "/.config/lgmagic"
 
 struct config *g_cfg;
-const char *g_tool_version = "2.0.1";
+const char *g_tool_version = LGMAGIC_VERSION;
 
 enum {
 	X_IMU_DEVICE = 1 << 0,
@@ -175,7 +176,7 @@ static void merge_file(struct config *cfg, const char *path)
 		if (legacy_json_path(path, legacy, sizeof(legacy)) == 0 &&
 		    stat(legacy, &st) == 0)
 			fprintf(stderr, "warning: %s is v1 JSON and is no "
-				"longer loaded; run 'lg-magic config migrate' "
+				"longer loaded; run 'lgmagic config migrate' "
 				"to convert it\n", legacy);
 		return;
 	}

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- * daemon_pipeline.c - lg-magicd frame pipeline.
+ * daemon_pipeline.c - lgmagicd frame pipeline.
  * See daemon_pipeline.h.
  */
 #include "daemon_pipeline.h"

@@ -3,7 +3,7 @@
  * cmd_bus.h - shared plumbing for the CLI subcommands (portable).
  *
  * The state-changing commands (device/profile/button/scroll) talk to
- * lg-magicd over the system bus with the zero-dependency dbus_client;
+ * lgmagicd over the system bus with the zero-dependency dbus_client;
  * the read-only ones may load the world-readable device files
  * directly.  This header holds the common connect/call/resolve/load
  * helpers so that error reporting ("not authorized", "daemon not
@@ -34,7 +34,7 @@ int cmd_bus_resolve_mac(struct dbus_client *c, const char *given,
 			char *buf, size_t bufsz);
 
 /* The production config roots, overridable for tests via
- * LG_MAGIC_CONFIG_ROOT / LG_MAGIC_STATE_DIR. */
+ * LGMAGIC_CONFIG_ROOT / LGMAGIC_STATE_DIR. */
 const char *cmd_config_root(void);
 const char *cmd_state_dir(void);
 

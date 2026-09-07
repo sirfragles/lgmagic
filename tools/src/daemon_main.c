@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- * daemon_main.c - lg-magicd, the system daemon.
+ * daemon_main.c - lgmagicd, the system daemon.
  *
  * Startup order (safety requirement from the plan): scan and open each
  * remote, create ITS virtual pair BEFORE grabbing it, then the poll
@@ -29,8 +29,8 @@
 #include <string.h>
 #include <time.h>
 
-#define DEFAULT_CONFIG_ROOT "/etc/lg-magic"
-#define DEFAULT_STATE_DIR "/var/lib/lg-magic"
+#define DEFAULT_CONFIG_ROOT "/etc/lgmagic"
+#define DEFAULT_STATE_DIR "/var/lib/lgmagic"
 
 static volatile sig_atomic_t g_reload;
 
@@ -44,7 +44,7 @@ static void on_signal(int sig)
 
 static void usage(FILE *out)
 {
-	fputs("Usage: lg-magicd [--keyboard PATH] [--config-root DIR]\n"
+	fputs("Usage: lgmagicd [--keyboard PATH] [--config-root DIR]\n"
 	      "                  [--state-dir DIR] [--no-uinput] [--debug]\n", out);
 }
 
@@ -95,7 +95,7 @@ int main(int argc, char **argv)
 			usage(stdout);
 			return 0;
 		} else {
-			fprintf(stderr, "lg-magicd: unexpected argument '%s'\n",
+			fprintf(stderr, "lgmagicd: unexpected argument '%s'\n",
 				argv[i]);
 			usage(stderr);
 			return 1;
@@ -104,7 +104,7 @@ int main(int argc, char **argv)
 
 	if (daemon_config_init(&dc, config_root, state_dir, err,
 			       sizeof(err)) < 0) {
-		fprintf(stderr, "lg-magicd: %s\n", err);
+		fprintf(stderr, "lgmagicd: %s\n", err);
 		return 1;
 	}
 
@@ -113,21 +113,21 @@ int main(int argc, char **argv)
 	 * never leave a remote without a target). */
 	if (daemon_devices_init(&dd, &dc, kbd_override, no_uinput, debug,
 				err, sizeof(err)) < 0) {
-		fprintf(stderr, "lg-magicd: %s\n", err);
+		fprintf(stderr, "lgmagicd: %s\n", err);
 		ret = 1;
 		goto out;
 	}
 	/* A failed first scan is not fatal: the polling fallback retries. */
 	if (daemon_devices_rescan(&dd, err, sizeof(err)) < 0 && debug)
-		fprintf(stderr, "lg-magicd: %s\n", err);
+		fprintf(stderr, "lgmagicd: %s\n", err);
 
 	/* 2b. The system bus (optional - without one the daemon runs
 	 * busless, e.g. in the busless e2e). */
 	bus = daemon_bus_open(&dd, err, sizeof(err));
 	if (!bus)
-		fprintf(stderr, "lg-magicd: %s (running without the bus)\n", err);
+		fprintf(stderr, "lgmagicd: %s (running without the bus)\n", err);
 	else
-		fprintf(stderr, "lg-magicd: bus name %s acquired\n", LG_BUS_NAME);
+		fprintf(stderr, "lgmagicd: bus name %s acquired\n", LG_BUS_NAME);
 
 	/* 3. Signals: SIGHUP reloads, SIGINT/SIGTERM shut down (the grab
 	 * is released by the cleanup below). */
@@ -147,9 +147,9 @@ int main(int argc, char **argv)
 			break;
 		if (g_reload) {
 			g_reload = 0;
-			fprintf(stderr, "lg-magicd: reloading config\n");
+			fprintf(stderr, "lgmagicd: reloading config\n");
 			if (daemon_devices_reload(&dd, err, sizeof(err)) < 0)
-				fprintf(stderr, "lg-magicd: %s\n", err);
+				fprintf(stderr, "lgmagicd: %s\n", err);
 		}
 
 		{
@@ -161,7 +161,7 @@ int main(int argc, char **argv)
 				struct pollfd *p = realloc(fds, need * sizeof(*fds));
 
 				if (!p) {
-					fprintf(stderr, "lg-magicd: out of "
+					fprintf(stderr, "lgmagicd: out of "
 						"memory\n");
 					ret = 1;
 					break;
@@ -187,7 +187,7 @@ int main(int argc, char **argv)
 		if (delay <= 0) {
 			if (daemon_devices_rescan(&dd, err, sizeof(err)) < 0 &&
 			    debug)
-				fprintf(stderr, "lg-magicd: %s\n", err);
+				fprintf(stderr, "lgmagicd: %s\n", err);
 			continue;
 		}
 		prc = poll(fds, n, (int)delay);
@@ -198,7 +198,7 @@ int main(int argc, char **argv)
 		for (i = 0; i < n; i++) {
 			if (bus && i == ndev && fds[i].revents) {
 				if (daemon_bus_process(bus, fds[i].revents) < 0) {
-					fprintf(stderr, "lg-magicd: fatal bus "
+					fprintf(stderr, "lgmagicd: fatal bus "
 						"error, running busless\n");
 					daemon_bus_close(bus);
 					bus = NULL;

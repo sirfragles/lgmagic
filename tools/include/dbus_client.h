@@ -1,12 +1,12 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- * dbus_client.h - minimal zero-dependency D-Bus client for the lg-magic
+ * dbus_client.h - minimal zero-dependency D-Bus client for the lgmagic
  * CLI (portable).
  *
- * The CLI talks to lg-magicd over the system bus: one fixed destination,
+ * The CLI talks to lgmagicd over the system bus: one fixed destination,
  * one fixed interface, one call in flight, no signals, no introspection.
  * The wire protocol (marshaling, AUTH EXTERNAL) is implemented by hand in
- * dbus_client.c so that `lg-magic` keeps linking only libc/libm - no
+ * dbus_client.c so that `lgmagic` keeps linking only libc/libm - no
  * libsystemd (asserted by ldd in CI).
  *
  * Supported input types:  s (string), d (double), u (uint32)

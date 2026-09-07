@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- * cmd_imu.c - `lg-magic imu` subcommand (scripts/display_imu.py).
+ * cmd_imu.c - `lgmagic imu` subcommand (scripts/display_imu.py).
  *
  * Modes match the Python script:
  *   (default)      raw dt/Accel/Gyro prints
@@ -42,7 +42,7 @@ static void on_signal(int sig)
 
 static void usage(FILE *out)
 {
-	fputs("Usage: lg-magic imu [options]\n"
+	fputs("Usage: lgmagic imu [options]\n"
 	      "\n"
 	      "Reads the IMU via evdev (auto-detected, or --device / config).\n"
 	      "\n"
@@ -105,7 +105,7 @@ int cmd_imu(int argc, char **argv)
 		else if (strcmp(argv[i], "--print-calib") == 0)
 			do_print_calib = 1;
 		else {
-			fprintf(stderr, "lg-magic imu: unexpected argument "
+			fprintf(stderr, "lgmagic imu: unexpected argument "
 				"'%s'\n", argv[i]);
 			usage(stderr);
 			return 1;
@@ -121,13 +121,13 @@ int cmd_imu(int argc, char **argv)
 		calib_path = g_cfg->default_calib;
 	if (calib_path) {
 		if (calib_load(calib_path, &cal, err, sizeof(err)) < 0) {
-			fprintf(stderr, "lg-magic: %s\n", err);
+			fprintf(stderr, "lgmagic: %s\n", err);
 			return 1;
 		}
 	}
 	if (do_print_calib) {
 		if (!calib_path) {
-			fprintf(stderr, "lg-magic: no calibration loaded "
+			fprintf(stderr, "lgmagic: no calibration loaded "
 				"(use --calib FILE)\n");
 			return 1;
 		}
@@ -146,7 +146,7 @@ int cmd_imu(int argc, char **argv)
 
 	/* Cube needs a real terminal; fall back to --ahrs text mode. */
 	if (do_cube && !cube_available()) {
-		fprintf(stderr, "lg-magic: --cube needs a terminal; "
+		fprintf(stderr, "lgmagic: --cube needs a terminal; "
 			"falling back to --ahrs text mode\n");
 		do_cube = 0;
 	}
@@ -155,7 +155,7 @@ int cmd_imu(int argc, char **argv)
 	if (!device_path)
 		device_path = g_cfg->imu_device;
 	if (evdev_find_imu(&dev, device_path, err, sizeof(err)) < 0) {
-		fprintf(stderr, "lg-magic: %s\n", err);
+		fprintf(stderr, "lgmagic: %s\n", err);
 		return 1;
 	}
 	printf("Using device: %s (%s)\n", dev.name, dev.path);
@@ -166,7 +166,7 @@ int cmd_imu(int argc, char **argv)
 	if (do_mouse) {
 		ufd = uinput_open(err, sizeof(err));
 		if (ufd < 0) {
-			fprintf(stderr, "lg-magic: %s\n", err);
+			fprintf(stderr, "lgmagic: %s\n", err);
 			evdev_close(&dev);
 			return 1;
 		}
@@ -230,7 +230,7 @@ int cmd_imu(int argc, char **argv)
 		if (rv < 0) {
 			if (g_stop)
 				break;
-			fprintf(stderr, "lg-magic: %s\n", err);
+			fprintf(stderr, "lgmagic: %s\n", err);
 			ret = 1;
 			break;
 		}
@@ -256,7 +256,7 @@ int cmd_imu(int argc, char **argv)
 				cap = cap ? cap * 2 : 1024;
 				samples = realloc(samples, cap * sizeof(*samples));
 				if (!samples) {
-					fprintf(stderr, "lg-magic: out of "
+					fprintf(stderr, "lgmagic: out of "
 						"memory\n");
 					ret = 1;
 					break;
@@ -289,7 +289,7 @@ int cmd_imu(int argc, char **argv)
 				       "% .6g]\n", dt ? dt : 0.0, filt_out[0],
 				       filt_out[1], filt_out[2]);
 				if (uinput_move(ufd, dx, dy) < 0)
-					fprintf(stderr, "lg-magic: uinput "
+					fprintf(stderr, "lgmagic: uinput "
 						"write failed\n");
 				printf("REL_X : %d REL_Y: %d\n", dx, dy);
 			}
@@ -330,7 +330,7 @@ int cmd_imu(int argc, char **argv)
 
 	if (csv_path && nsamples > 0) {
 		if (csv_write(csv_path, samples, nsamples, err, sizeof(err)) < 0) {
-			fprintf(stderr, "lg-magic: %s\n", err);
+			fprintf(stderr, "lgmagic: %s\n", err);
 			ret = 1;
 		} else {
 			printf("Wrote %zu samples to %s\n", nsamples, csv_path);

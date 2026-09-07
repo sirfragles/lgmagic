@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- * daemon_config.c - lg-magicd configuration.
+ * daemon_config.c - lgmagicd configuration.
  * See daemon_config.h for the layout and precedence.
  */
 #include "daemon_config.h"

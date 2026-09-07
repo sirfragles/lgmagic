@@ -1,11 +1,11 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- * config.h - lg-magic user configuration.
+ * config.h - lgmagic user configuration.
  *
- * Precedence: built-in defaults < /etc/lg-magic/config.toml <
- * ~/.config/lg-magic/config.toml < --config FILE < CLI flags.
+ * Precedence: built-in defaults < /etc/lgmagic/config.toml <
+ * ~/.config/lgmagic/config.toml < --config FILE < CLI flags.
  * Files are TOML, parsed with our own toml.c (v1 JSON is converted with
- * `lg-magic config migrate`).
+ * `lgmagic config migrate`).
  */
 #ifndef LG_TOOLS_CONFIG_H
 #define LG_TOOLS_CONFIG_H
@@ -29,13 +29,13 @@ struct config {
 struct config *config_load(const char *extra_path);
 
 /* The daemon's config: ONLY <config_root>/config.toml on top of the
- * defaults.  lg-magicd runs as root and never reads ~/.config (a root
+ * defaults.  lgmagicd runs as root and never reads ~/.config (a root
  * process must not read user files). */
 struct config *config_load_daemon(const char *config_root);
 
 void config_free(struct config *cfg);
 
-/* Save the effective config to ~/.config/lg-magic/config.toml. */
+/* Save the effective config to ~/.config/lgmagic/config.toml. */
 int config_save_user(struct config *cfg, char *err, size_t errsz);
 
 /* Set one key by name (the names match the config file keys).

@@ -1,11 +1,11 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- * cmd_calib2bin.c - `lg-magic calib2bin` subcommand (scripts/convert_calib.py).
+ * cmd_calib2bin.c - `lgmagic calib2bin` subcommand (scripts/convert_calib.py).
  *
- *   lg-magic calib2bin JSON OUTPUT_BIN [--alpha F] [--mouse_k F]
+ *   lgmagic calib2bin JSON OUTPUT_BIN [--alpha F] [--mouse_k F]
  *
  * Converts the calibration JSON to the 32-byte little-endian firmware blob
- * (struct lg_magic_airmouse_calib: gyro_bias[3], gyro_scale[3], alpha,
+ * (struct lgmagic_airmouse_calib: gyro_bias[3], gyro_scale[3], alpha,
  * mouse_k). alpha/mouse_k default to the configuration values (0.2/0.5).
  * The range checks of the kernel are mirrored as warnings; the blob is
  * still written (the kernel rejects it the same way).
@@ -21,7 +21,7 @@
 
 static void usage(FILE *out)
 {
-	fputs("Usage: lg-magic calib2bin JSON OUTPUT_BIN [--alpha F] [--mouse_k F]\n"
+	fputs("Usage: lgmagic calib2bin JSON OUTPUT_BIN [--alpha F] [--mouse_k F]\n"
 	      "\n"
 	      "  JSON       calibration file (gyro.bias and gyro.scale, 3 values each)\n"
 	      "  OUTPUT_BIN 32-byte firmware blob for /lib/firmware/\n"
@@ -51,7 +51,7 @@ int cmd_calib2bin(int argc, char **argv)
 	const char *err = NULL;
 	size_t eoff = 0;
 	struct calib c;
-	struct lg_magic_airmouse_calib blob;
+	struct lgmagic_airmouse_calib blob;
 	char cerr[256];
 	FILE *f;
 	int i;
@@ -79,7 +79,7 @@ int cmd_calib2bin(int argc, char **argv)
 			else if (npos < 2)
 				pos[npos++] = argv[i];
 			else {
-				fprintf(stderr, "lg-magic calib2bin: unexpected "
+				fprintf(stderr, "lgmagic calib2bin: unexpected "
 					"argument '%s'\n", argv[i]);
 				usage(stderr);
 				return 1;
@@ -118,13 +118,13 @@ int cmd_calib2bin(int argc, char **argv)
 
 	f = fopen(out_path, "wb");
 	if (!f) {
-		fprintf(stderr, "lg-magic: cannot open %s: %s\n", out_path,
+		fprintf(stderr, "lgmagic: cannot open %s: %s\n", out_path,
 			strerror(errno));
 		return 1;
 	}
 	if (fwrite(&blob, 1, sizeof(blob), f) != sizeof(blob) ||
 	    fclose(f) != 0) {
-		fprintf(stderr, "lg-magic: write error on %s\n", out_path);
+		fprintf(stderr, "lgmagic: write error on %s\n", out_path);
 		return 1;
 	}
 	printf("Saved struct to %s\n", out_path);

@@ -199,7 +199,7 @@ static void test_read_errors(void)
 	struct imu_sample *out = NULL;
 	long n;
 
-	n = csv_read("/nonexistent/lg-magic-no-such.csv", &out, err,
+	n = csv_read("/nonexistent/lgmagic-no-such.csv", &out, err,
 		     sizeof(err));
 	CHECK(n == -1 && err[0] != '\0',
 	      "csv_read of a missing file returns -1 with an error message");
