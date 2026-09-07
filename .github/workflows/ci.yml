@@ -2,7 +2,23 @@ name: CI
 
 on:
   push:
+    branches:
+      - master
+    # Doc-only pushes skip the whole workflow (the release tag trigger is
+    # gone: release.yml owns tags - a tag push used to fire BOTH
+    # workflows, duplicating the branch jobs).
+    paths-ignore:
+      - '*.md'
+      - 'images/**'
+      - 'docs/**'
   pull_request:
+    branches:
+      - master
+    # NO paths-ignore on PRs: a skipped required check would hang the PR.
+  # Weekly drift detection on the default branch (cron imported from
+  # dkms-project/dkms): the tree must still carry the VERSION variable.
+  schedule:
+    - cron: '0 23 * * 1'
 
 # One run per ref at a time: a newer push/PR supersedes the running one.
 concurrency:
@@ -10,19 +26,72 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Runs first and gates every other job: the GitHub repository variable
+  # VERSION (single source of truth, ${{ vars.VERSION }}) must be set and
+  # the tree must already carry it. The sync step stamps the version
+  # tokens from the variable; the diff step then fails whenever HEAD
+  # disagrees with the variable (the release runbook keeps that red
+  # window to minutes - see RELEASING.md).
+  drift-gate:
+    runs-on: ubuntu-latest
+    env:
+      V: ${{ vars.VERSION }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fail loudly when the VERSION variable is empty
+        run: |
+          if [ -n "$V" ]; then
+            echo "OK: VERSION=$V"
+            exit 0
+          fi
+          echo "::error::The VERSION repository variable is empty or unset."
+          echo "::error::  gh variable set VERSION --repo sirfragles/lgmagic --body \"X.Y.Z\""
+          echo "::error::Note: vars.VERSION is invisible on pull requests from"
+          echo "::error::forks - a fork PR cannot pass this gate by design."
+          exit 1
+
+      - name: Stamp the version from the VERSION variable
+        run: bash scripts/sync-version.sh "$V"
+        # Token-only, idempotent: dkms.conf, tools/include/build_version.h,
+        # LG_API_VERSION (MAJ.MIN), debian/changelog top line, the rpm
+        # spec Version and the PKGBUILD pkgver. Changelog entries are
+        # hand-written and never touched.
+
+      - name: Require a clean tree (version bump must be merged)
+        run: |
+          git diff --exit-code -- \
+            dkms.conf \
+            tools/include/build_version.h \
+            tools/include/daemon_bus.h \
+            debian/changelog \
+            rpm/lgmagic.spec \
+            arch/PKGBUILD
+        # After the stamp above a diff can only mean HEAD carries a
+        # version that differs from the VERSION variable. Bump the
+        # variable together with (or just after) the chore/bump-to-X.Y.Z
+        # merge; a red drift-gate is the defining signal of the window
+        # in between (RELEASING.md). daemon_bus.h is included for
+        # LG_API_VERSION: a new MAJ.MIN must land in the same commit.
+
   # Linux: build the DKMS module, the tools and the daemon, run the full
   # unit suite, run the bus+polkit e2e against fake devices, package the
   # .deb, install it on the runner and sanity-check the result.
   linux:
+    needs: drift-gate
     runs-on: ubuntu-latest
+    env:
+      V: ${{ vars.VERSION }}
     steps:
       - uses: actions/checkout@v4
 
-      - name: Derive the package version from dkms.conf
-        run: echo "V=$(sed -n 's/^PACKAGE_VERSION="\(.*\)"/\1/p' dkms.conf)" >> "$GITHUB_ENV"
-        # Single source of truth: dkms.conf PACKAGE_VERSION. The .deb
-        # installs into /usr/src/lg-magic-$V and postinst registers
-        # lg-magic/$V with dkms - the steps below assert exactly that.
+      - name: Stamp the version from the VERSION variable
+        run: bash scripts/sync-version.sh "$V"
+        # Single source of truth: the VERSION repository variable. The
+        # .deb installs into /usr/src/lgmagic-$V and postinst registers
+        # lgmagic/$V with dkms - the steps below assert exactly that.
+        # (env values reach run: steps; $GITHUB_ENV values would not reach
+        # with: blocks, hence the static globs on the upload steps.)
 
       - name: Install build, test and packaging dependencies
         run: |
@@ -38,7 +107,7 @@ jobs:
         #   dkms build triggered by the .deb install (runner kernels are
         #   Azure-tuned but their headers are in the apt archive).
         # linux-libc-dev: /usr/include/linux/{input,uinput,hidraw}.h for tools.
-        # libsystemd-dev + pkg-config: lg-magicd links libsystemd (sd-bus);
+        # libsystemd-dev + pkg-config: lgmagicd links libsystemd (sd-bus);
         #   the ldd step asserts that the CLI does NOT.
         # dbus + polkitd: the e2e script starts its own throwaway system
         #   bus and polkit daemon.
@@ -50,7 +119,7 @@ jobs:
         # `make` (all) compiles the module against
         # /lib/modules/$(uname -r)/build - the same KDIR path DKMS uses,
         # so a green build validates the DKMS build command in dkms.conf.
-        # It also builds lg-magicd and the fake_devices test harness
+        # It also builds lgmagicd and the fake_devices test harness
         # (tools/Makefile's linux-extra target).
 
       - name: Run the full test suite
@@ -58,20 +127,20 @@ jobs:
         # Builds/runs the 14 unit-test binaries (plain C, exit-code based,
         # including the new toml/keymap/profiles/airmouse/pairing/
         # dbus_client tests) and tests/cli_smoke.sh against the built
-        # lg-magic binary.
+        # lgmagic binary.
 
       - name: Run the bus + polkit e2e (fake devices)
         run: |
           # The runner ships with a live system bus on
           # /run/dbus/system_bus_socket; daemon_e2e.sh needs that socket
-          # free to run its own throwaway bus (lg-magicd opens the fixed
+          # free to run its own throwaway bus (lgmagicd opens the fixed
           # system-bus socket, it cannot use a private address). The CI
           # VM is ephemeral and no later step uses the bus - stop it.
           sudo systemctl stop dbus.socket dbus.service || true
           sudo rm -f /run/dbus/system_bus_socket || true
           sudo sh tools/tests/daemon_e2e.sh
         # Full input-takeover e2e: a fake "LG Magic Remote" keyboard + IMU
-        # on uinput, a throwaway system bus with polkitd, lg-magicd, and
+        # on uinput, a throwaway system bus with polkitd, lgmagicd, and
         # assertions on mapping, profiles, calibration, scroll, airmouse,
         # polkit denial, reconnect and grab release after SIGKILL. The
         # script needs root and /dev/uinput; it SKIPs (exit 0) when uinput
@@ -82,39 +151,39 @@ jobs:
         run: |
           # The CLI must stay libc/libm-only; the daemon must link
           # libsystemd (sd-bus). Assert both directions.
-          echo "== ldd tools/lg-magic =="
-          ldd tools/lg-magic
-          if ldd tools/lg-magic | grep -q libsystemd; then
-            echo "::error::lg-magic links libsystemd - the CLI must stay libc/libm-only"
+          echo "== ldd tools/lgmagic =="
+          ldd tools/lgmagic
+          if ldd tools/lgmagic | grep -q libsystemd; then
+            echo "::error::lgmagic links libsystemd - the CLI must stay libc/libm-only"
             exit 1
           fi
-          echo "== ldd tools/lg-magicd =="
-          ldd tools/lg-magicd
-          ldd tools/lg-magicd | grep -q libsystemd || {
-            echo "::error::lg-magicd does not link libsystemd (sd-bus transport)"
+          echo "== ldd tools/lgmagicd =="
+          ldd tools/lgmagicd
+          ldd tools/lgmagicd | grep -q libsystemd || {
+            echo "::error::lgmagicd does not link libsystemd (sd-bus transport)"
             exit 1
           }
-          echo "OK: lg-magic = libc/libm only, lg-magicd links libsystemd"
+          echo "OK: lgmagic = libc/libm only, lgmagicd links libsystemd"
 
       - name: Clean build artifacts before packaging
         run: make clean
         # debian/rules copies the module sources (Makefile, COPYING,
-        # dkms.conf, kernel/, include/) into /usr/src/lg-magic-$V inside
+        # dkms.conf, kernel/, include/) into /usr/src/lgmagic-$V inside
         # the .deb (version from debian/changelog) - keep the CI's
         # .o/.ko files out of the shipped tree.
 
       - name: Build the Debian package
         run: dpkg-buildpackage -us -uc -b
         # Unsigned (-us -uc), binary-only (-b). Must run from the repo
-        # root; the .deb lands in the PARENT directory (../lg-magic-dkms_*.deb).
+        # root; the .deb lands in the PARENT directory (../lgmagic-dkms_*.deb).
 
       - name: Stage the .deb inside the workspace
         run: |
           mkdir -p dist
-          cp ../lg-magic-dkms_*.deb dist/
+          cp ../lgmagic-dkms_*.deb dist/
 
       - name: Install the .deb on the runner
-        run: sudo dpkg -i dist/lg-magic-dkms_*.deb
+        run: sudo dpkg -i dist/lgmagic-dkms_*.deb
         # Simulates the clean-install flow without a container: postinst
         # runs dkms add/build/install (best-effort - a headers/build
         # mismatch must not break the install), reloads udev rules and
@@ -122,16 +191,20 @@ jobs:
 
       - name: Verify installed binaries and files (strict)
         run: |
-          test -x /usr/bin/lg-magic
-          /usr/bin/lg-magic --version
-          test -x /usr/libexec/lg-magicd
-          test -f /usr/lib/systemd/system/lg-magicd.service
-          test -f /usr/lib/tmpfiles.d/lg-magic.conf
+          test -x /usr/bin/lgmagic
+          /usr/bin/lgmagic --version
+          /usr/bin/lgmagic --version | grep -q "$V" || {
+            echo "::error::/usr/bin/lgmagic --version does not print $V"
+            exit 1
+          }
+          test -x /usr/libexec/lgmagicd
+          test -f /usr/lib/systemd/system/lgmagicd.service
+          test -f /usr/lib/tmpfiles.d/lgmagic.conf
           test -f /usr/share/polkit-1/actions/org.lgmagic.policy
           test -f /usr/share/dbus-1/system.d/org.lgmagic.conf
-          test -f /etc/lg-magic/config.toml
+          test -f /etc/lgmagic/config.toml
           test -f /etc/udev/rules.d/51-lgimu.rules
-          test -f /usr/src/lg-magic-$V/dkms.conf
+          test -f /usr/src/lgmagic-$V/dkms.conf
           echo "OK: CLI, daemon, unit, policy, dbus conf, config and DKMS tree installed"
 
       - name: Check DKMS module state (tolerant)
@@ -140,36 +213,39 @@ jobs:
           # fail CI: report the dkms state but keep this step green.
           echo "== dkms status =="
           dkms status || true
-          echo "== /usr/src/lg-magic-$V =="
-          ls -la /usr/src/lg-magic-$V || echo "warning: /usr/src/lg-magic-$V not found"
-          if dkms status 2>/dev/null | grep -q "lg-magic/$V"; then
-            echo "OK: lg-magic/$V registered in dkms"
+          echo "== /usr/src/lgmagic-$V =="
+          ls -la /usr/src/lgmagic-$V || echo "warning: /usr/src/lgmagic-$V not found"
+          if dkms status 2>/dev/null | grep -q "lgmagic/$V"; then
+            echo "OK: lgmagic/$V registered in dkms"
           else
-            echo "::warning::lg-magic/$V missing from 'dkms status' (see dkms output above)"
+            echo "::warning::lgmagic/$V missing from 'dkms status' (see dkms output above)"
           fi
 
       - name: Upload the .deb artifact
         uses: actions/upload-artifact@v4
         with:
-          name: lg-magic-dkms-deb
-          path: dist/lg-magic-dkms_*.deb
+          name: lgmagic-dkms-deb
+          path: dist/lgmagic-dkms_*.deb
           retention-days: 30
           if-no-files-found: error
 
   # Fedora: build the rpm with rpmbuild in a fedora container. The spec's
   # Source0 is a tag tarball, which does not exist on branch pushes, so
   # the tarball is pre-seeded with a snapshot of the checkout named for
-  # the dkms.conf version (the same way the release workflow builds).
+  # the version (the same way the release workflow builds).
   fedora:
+    needs: drift-gate
     runs-on: ubuntu-latest
     container: fedora:latest
+    env:
+      V: ${{ vars.VERSION }}
     steps:
       - uses: actions/checkout@v4
 
-      - name: Derive the package version from dkms.conf
-        run: echo "V=$(sed -n 's/^PACKAGE_VERSION="\(.*\)"/\1/p' dkms.conf)" >> "$GITHUB_ENV"
-        # The spec's %setup extracts Source0 into lg-magic-%{version};
-        # the tarball name must carry the same version.
+      - name: Stamp the version from the VERSION variable
+        run: bash scripts/sync-version.sh "$V"
+        # The spec's %setup extracts Source0 into lgmagic-%{version};
+        # the tarball name must carry the same version as the spec.
 
       - name: Install build dependencies
         run: |
@@ -179,25 +255,25 @@ jobs:
       - name: Snapshot sources and build the rpm
         run: |
           mkdir -p ~/rpmbuild/{SOURCES,SPECS}
-          tar -czf ~/rpmbuild/SOURCES/lg-magic-$V.tar.gz \
+          tar -czf ~/rpmbuild/SOURCES/lgmagic-$V.tar.gz \
             --exclude=.git --exclude='*.o' \
-            --exclude=tools/lg-magic --exclude=tools/lg-magicd \
+            --exclude=tools/lgmagic --exclude=tools/lgmagicd \
             --exclude=tools/tests/fake_devices \
-            --transform="s,^,lg-magic-$V/," .
-          cp rpm/lg-magic.spec ~/rpmbuild/SPECS/
-          rpmbuild -bb ~/rpmbuild/SPECS/lg-magic.spec
+            --transform="s,^,lgmagic-$V/," .
+          cp rpm/lgmagic.spec ~/rpmbuild/SPECS/
+          rpmbuild -bb ~/rpmbuild/SPECS/lgmagic.spec
 
       - name: Verify the package contents
         run: |
-          rpm=$(ls ~/rpmbuild/RPMS/*/lg-magic-$V*.rpm)
-          for f in /usr/bin/lg-magic /usr/libexec/lg-magicd \
-                   /usr/lib/systemd/system/lg-magicd.service \
-                   /usr/lib/tmpfiles.d/lg-magic.conf \
+          rpm=$(ls ~/rpmbuild/RPMS/*/lgmagic-$V*.rpm)
+          for f in /usr/bin/lgmagic /usr/libexec/lgmagicd \
+                   /usr/lib/systemd/system/lgmagicd.service \
+                   /usr/lib/tmpfiles.d/lgmagic.conf \
                    /usr/share/polkit-1/actions/org.lgmagic.policy \
                    /usr/share/dbus-1/system.d/org.lgmagic.conf \
-                   /etc/lg-magic/config.toml \
+                   /etc/lgmagic/config.toml \
                    /usr/lib/udev/rules.d/51-lgimu.rules \
-                   /usr/src/lg-magic-$V/dkms.conf; do
+                   /usr/src/lgmagic-$V/dkms.conf; do
             rpm -qlp "$rpm" | grep -qxF "$f" || { echo "missing: $f"; exit 1; }
           done
           echo "OK: all rpm files present"
@@ -209,14 +285,14 @@ jobs:
           # the workspace and upload a last-segment-only glob instead
           # (the same pattern the deb job uses).
           mkdir -p dist
-          cp ~/rpmbuild/RPMS/*/lg-magic-$V*.rpm dist/
+          cp ~/rpmbuild/RPMS/*/lgmagic-$V*.rpm dist/
 
       - name: Upload the .rpm artifact
         uses: actions/upload-artifact@v4
         with:
-          name: lg-magic-rpm
-          # [0-9] right after the dash: excludes lg-magic-debuginfo/debugsource.
-          path: dist/lg-magic-[0-9]*.rpm
+          name: lgmagic-rpm
+          # [0-9] right after the dash: excludes lgmagic-debuginfo/debugsource.
+          path: dist/lgmagic-[0-9]*.rpm
           retention-days: 30
           if-no-files-found: error
 
@@ -225,14 +301,17 @@ jobs:
   # cannot be installed from the official repos here - makepkg runs with
   # --nodeps (AUR users get dkms through their helper).
   arch:
+    needs: drift-gate
     runs-on: ubuntu-latest
     container: archlinux:base-devel
+    env:
+      V: ${{ vars.VERSION }}
     steps:
       - uses: actions/checkout@v4
 
-      - name: Derive the package version from dkms.conf
-        run: echo "V=$(sed -n 's/^PACKAGE_VERSION="\(.*\)"/\1/p' dkms.conf)" >> "$GITHUB_ENV"
-        # PKGBUILD cds into lg-magic-$pkgver - the tarball name must
+      - name: Stamp the version from the VERSION variable
+        run: bash scripts/sync-version.sh "$V"
+        # PKGBUILD cds into lgmagic-$pkgver - the tarball name must
         # carry the same version as pkgver.
 
       - name: Install build dependencies
@@ -241,11 +320,11 @@ jobs:
       - name: Snapshot sources (tag tarballs do not exist on branch pushes)
         run: |
           mkdir -p /tmp/pkg/src
-          tar -czf /tmp/pkg/src/lg-magic-$V.tar.gz \
+          tar -czf /tmp/pkg/src/lgmagic-$V.tar.gz \
             --exclude=.git --exclude='*.o' \
-            --exclude=tools/lg-magic --exclude=tools/lg-magicd \
+            --exclude=tools/lgmagic --exclude=tools/lgmagicd \
             --exclude=tools/tests/fake_devices \
-            --transform="s,^,lg-magic-$V/," .
+            --transform="s,^,lgmagic-$V/," .
 
       - name: Build with makepkg (non-root builder)
         run: |
@@ -262,28 +341,28 @@ jobs:
 
       - name: Verify the package contents
         run: |
-          pkg=$(ls /tmp/pkg/lg-magic-$V*.pkg.tar.zst)
-          for f in usr/bin/lg-magic usr/lib/lg-magicd \
-                   usr/lib/systemd/system/lg-magicd.service \
-                   usr/lib/tmpfiles.d/lg-magic.conf \
+          pkg=$(ls /tmp/pkg/lgmagic-$V*.pkg.tar.zst)
+          for f in usr/bin/lgmagic usr/lib/lgmagicd \
+                   usr/lib/systemd/system/lgmagicd.service \
+                   usr/lib/tmpfiles.d/lgmagic.conf \
                    usr/share/polkit-1/actions/org.lgmagic.policy \
                    usr/share/dbus-1/system.d/org.lgmagic.conf \
-                   etc/lg-magic/config.toml usr/lib/udev/rules.d/51-lgimu.rules \
-                   usr/src/lg-magic-$V/dkms.conf; do
+                   etc/lgmagic/config.toml usr/lib/udev/rules.d/51-lgimu.rules \
+                   usr/src/lgmagic-$V/dkms.conf; do
             tar -tf "$pkg" | grep -qxF "$f" || { echo "missing: $f"; exit 1; }
           done
-          # Arch has no /usr/libexec: the unit must point at /usr/lib/lg-magicd.
-          tar -xOf "$pkg" usr/lib/systemd/system/lg-magicd.service \
-            | grep -q 'ExecStart=/usr/lib/lg-magicd' \
-            || { echo "unit does not use /usr/lib/lg-magicd"; exit 1; }
+          # Arch has no /usr/libexec: the unit must point at /usr/lib/lgmagicd.
+          tar -xOf "$pkg" usr/lib/systemd/system/lgmagicd.service \
+            | grep -q 'ExecStart=/usr/lib/lgmagicd' \
+            || { echo "unit does not use /usr/lib/lgmagicd"; exit 1; }
           echo "OK: all package files present, unit patched for /usr/lib"
 
       - name: Upload the package artifact
         uses: actions/upload-artifact@v4
         with:
-          name: lg-magic-arch
-          # [0-9] right after the dash: excludes the lg-magic-debug package.
-          path: /tmp/pkg/lg-magic-[0-9]*.pkg.tar.zst
+          name: lgmagic-arch
+          # [0-9] right after the dash: excludes the lgmagic-debug package.
+          path: /tmp/pkg/lgmagic-[0-9]*.pkg.tar.zst
           retention-days: 30
           if-no-files-found: error
 
@@ -292,9 +371,211 @@ jobs:
   # the kernel module are Linux-only by design, hence only `check` runs
   # here (14 test binaries, all portable).
   macos:
+    needs: drift-gate
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
 
       - name: Build and run portable unit tests (clang)
         run: make -C tools check
+
+  # DKMS build matrix: add/build/install the module with the distro's own
+  # kernel packages inside the distro container. Catches kernel-API drift
+  # (e.g. the input_absinfo min/max -> minimum/maximum rename in 5.4)
+  # and packaging drift across the supported families; the per-job dkms
+  # build is STRICT here (unlike the package postinsts, which are
+  # best-effort by design).
+  dkms-matrix:
+    needs: drift-gate
+    runs-on: ubuntu-latest
+    env:
+      V: ${{ vars.VERSION }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - image: ubuntu:22.04
+            family: deb
+          - image: ubuntu:24.04
+            family: deb
+          - image: ubuntu:26.04
+            family: deb
+          - image: debian:12
+            family: deb
+          - image: debian:13
+            family: deb
+          - image: fedora:43
+            family: rpm
+          - image: fedora:44
+            family: rpm
+          - image: almalinux:9
+            family: el
+          - image: archlinux:latest
+            family: arch
+          - image: opensuse/tumbleweed
+            family: suse
+    container:
+      image: ${{ matrix.image }}
+    steps:
+      # The official base images ship no git; actions/checkout needs one.
+      - name: Install git
+        run: |
+          case "${{ matrix.family }}" in
+            deb)  apt-get update -q && apt-get install -qy git ;;
+            rpm|el) dnf install -y git ;;
+            arch) pacman -Sy --noconfirm --needed git ;;
+            suse) zypper --non-interactive install git ;;
+          esac
+
+      - uses: actions/checkout@v4
+
+      - name: Stamp the version from the VERSION variable
+        run: bash scripts/sync-version.sh "$V"
+        # The tree copied to /usr/src/lgmagic-$V and registered as
+        # lgmagic/$V must carry exactly the VERSION variable.
+
+      # A container SHARES the host kernel (uname -r inside is the
+      # runner's kernel, which the distro archive does not ship), so the
+      # distro's own kernel packages are installed here and dkms builds
+      # against THAT kernel - the dkms-project/dkms container pattern.
+      # The kernel image package installs FIRST: its postinst creates
+      # /lib/modules/<ver> and the headers postinst then creates the
+      # /lib/modules/<ver>/build symlink that dkms.conf's
+      # KDIR=/lib/modules/${kernelver}/build resolves through.
+      - name: Install dkms, toolchain and kernel (deb)
+        if: matrix.family == 'deb'
+        run: |
+          export DEBIAN_FRONTEND=noninteractive
+          apt-get update -q
+          apt-get install -qy dkms gcc make libsystemd-dev pkg-config
+          apt-get install -qy linux-image-amd64
+          apt-get install -qy linux-headers-amd64
+
+      - name: Install dkms, toolchain and kernel (rpm)
+        if: matrix.family == 'rpm'
+        run: |
+          dnf install -y --setopt=install_weak_deps=False \
+            dkms gcc make systemd-devel pkgconf kernel kernel-devel
+
+      - name: Install dkms, toolchain and kernel (el)
+        if: matrix.family == 'el'
+        run: |
+          # dkms is EPEL-only on EL9; kernel-devel is in BaseOS.
+          dnf install -y epel-release
+          dnf install -y --setopt=install_weak_deps=False \
+            dkms gcc make systemd-devel pkgconf kernel kernel-devel
+
+      - name: Install dkms, toolchain and kernel (arch)
+        if: matrix.family == 'arch'
+        run: |
+          pacman -Sy --noconfirm --needed \
+            dkms gcc make pkgconf systemd linux linux-headers
+
+      - name: Install dkms, toolchain and kernel (suse)
+        if: matrix.family == 'suse'
+        run: |
+          zypper --non-interactive install \
+            dkms gcc make pkgconf systemd-devel kernel-default kernel-default-devel
+
+      - name: Discover the installed kernel version
+        run: |
+          KVER=$(find /lib/modules -maxdepth 1 -mindepth 1 -type d \
+            -exec basename {} \; | sort -V | tail -n1)
+          if [ -z "$KVER" ]; then
+            echo "::error::no kernel found under /lib/modules"
+            exit 1
+          fi
+          echo "KVER=$KVER" >> "$GITHUB_ENV"
+          echo "Building against kernel $KVER"
+
+      - name: Copy the tree into the DKMS source location
+        run: |
+          # dkms add module/version expects /usr/src/<module>-<version>
+          # to already hold the source tree (dkms.conf at its top).
+          mkdir -p /usr/src/lgmagic-$V
+          tar --exclude=.git -cf - . | tar -xf - -C /usr/src/lgmagic-$V/
+
+      - name: dkms add
+        run: dkms add lgmagic/$V
+
+      - name: dkms build
+        run: dkms build lgmagic/$V -k "$KVER"
+        # dkms drives its own job control (serial here: one module, and a
+        # deterministic log beats -j noise); the kernel build itself
+        # should stay -j1 in this context - the Makefile is not touched.
+
+      - name: dkms install
+        run: dkms install lgmagic/$V -k "$KVER"
+
+      - name: Assert the built module
+        run: |
+          # DEST_MODULE_LOCATION puts the .ko under
+          # .../kernel/drivers/input/misc (mirroring an in-tree location),
+          # so search the whole module tree rather than only updates/+extra/.
+          # The trailing * covers distro module compression: EL9 and suse
+          # dkms install the module as lgmagic.ko.xz, others as lgmagic.ko.
+          ko=$(find /lib/modules/$KVER -name 'lgmagic.ko*' | head -n1)
+          if [ -z "$ko" ]; then
+            echo "::error::lgmagic.ko not found under /lib/modules/$KVER"
+            find /lib/modules/$KVER -maxdepth 6 -type f | head -20
+            exit 1
+          fi
+          echo "OK: $ko"
+          if command -v modinfo >/dev/null 2>&1; then
+            # The module sets no MODULE_VERSION - the meaningful check is
+            # that its vermagic matches the kernel it was built for.
+            modinfo -F vermagic "$ko" | grep -q "$KVER" || {
+              echo "::error::modinfo vermagic does not match $KVER"
+              modinfo "$ko"
+              exit 1
+            }
+            echo "OK: vermagic matches $KVER"
+          else
+            echo "modinfo not present in the container; skipping"
+          fi
+
+      - name: Direct build against the container kernel headers
+        run: |
+          # Catches kernel-API drift the dkms path also sees, without the
+          # dkms wrapper: the root Makefile descends into kernel/, whose
+          # Makefile builds with M=kernel/ (the same layout dkms.conf
+          # relies on via BUILT_MODULE_LOCATION).
+          make KVER="$KVER"
+          # KVER on clean too: without it the kernel clean target falls
+          # back to uname -r (the runner kernel, not in this container).
+          make clean KVER="$KVER"
+
+  # Static analysis of every shell script. Explicit file list: adding a
+  # new script to CI is a deliberate change, not glob luck.
+  shellcheck:
+    needs: drift-gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install shellcheck
+        run: sudo apt-get update && sudo apt-get install -y shellcheck
+
+      - name: Run shellcheck
+        run: |
+          # -S warning: informational notes (SC2086 quoting style etc.)
+          # stay out of the gate. SC1007/SC2015 are the pre-existing
+          # baseline idioms of the test scripts ("CDPATH= cd -- ...",
+          # "test && pass || fail") - deliberate, but linted as warnings;
+          # drop them from the exclusion list once the scripts are
+          # reworked. New findings of any OTHER code still fail.
+          shellcheck -S warning -e SC1007,SC2015 \
+            scripts/sync-version.sh \
+            tools/tests/cli_smoke.sh \
+            tools/tests/daemon_e2e.sh \
+            tools/tests/daemon_e2e_busless.sh \
+            tools/tests/daemon_bus_smoke.sh \
+            tools/tests/check_naming.sh \
+            tools/tests/check_version_sync.sh \
+            debian/postinst \
+            debian/prerm
+          # arch/lgmagic.install is sourced by pacman, not executed, so
+          # it has no shebang - declare the shell explicitly. SC2120 is
+          # a false positive: pacman passes pkgver-pkgrel as $2 when it
+          # sources the file.
+          shellcheck -s bash -S warning -e SC2120 arch/lgmagic.install
