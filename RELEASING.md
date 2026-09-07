@@ -95,20 +95,29 @@ is whatever commit it points at.
 Tag push fires `release.yml` only (ci.yml no longer runs on tags):
 
 ```
-gate -> deb | rpm | arch -> release -> verify
+gate -> deb (x5 legs) | rpm (x2 legs) | arch -> release -> verify
 ```
 
 - `gate` - the tag must be exactly `v<VERSION>` and the variable
   non-empty; loud failure otherwise.
-- `deb`, `rpm`, `arch` - each stamps from the variable (no-op on a
-  correct tree), builds one package and uploads it as an artifact.
-- `release` - downloads the three artifacts and attaches them to the
-  Release. `fail_on_unmatched_files: true`: nothing silently attaches
-  nothing, and the digit-after-dash globs keep
+- `deb` - a matrix of five containers (Ubuntu 22.04/24.04/26.04,
+  Debian 12/13). Each leg stamps from the variable, then rewrites only
+  its container copy of the changelog to a distro-tagged revision
+  (`0.0.1-1~ubuntu24.04`, distribution = the image's codename), so the
+  five `.deb`s get distinct filenames on the Release page. The repo
+  changelog stays at the plain `0.0.1-1`; dkms.conf, `debian/rules` and
+  `postinst` all derive the plain version, so the DKMS tree remains
+  `/usr/src/lgmagic-$V` everywhere.
+- `rpm` - two legs (Fedora 43/44); the `.fc43`/`.fc44` dist tag in the
+  filename comes from the build container automatically.
+- `arch` - one leg, unchanged (the pkg.tar.zst).
+- `release` - downloads all artifacts and attaches them to the Release.
+  `fail_on_unmatched_files: true`: nothing silently attaches nothing,
+  and the digit-after-dash globs keep
   `-debuginfo/-debugsource/-debug` packages off the Release.
-- `verify` - reads the Release assets back and requires EXACTLY three,
-  matching `^lgmagic-dkms_.*\.deb$`, `^lgmagic-[0-9].*\.rpm$` and
-  `^lgmagic-[0-9].*\.pkg\.tar\.zst$`.
+- `verify` - reads the Release assets back and requires EXACTLY eight:
+  five `^lgmagic-dkms_.*_amd64\.deb$`, two `^lgmagic-[0-9].*\.rpm$` and
+  one `^lgmagic-[0-9].*\.pkg\.tar\.zst$`.
 
 ```sh
 gh run watch   # or poll `gh run view` - watch's exit code is unreliable

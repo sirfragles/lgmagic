@@ -136,14 +136,17 @@ The `lgmagic` binary itself needs nothing at runtime beyond libc/libm.
 ### 1. Release packages (recommended)
 
 Download the package for your distro from the latest
-[GitHub Release](https://github.com/sirfragles/lgmagic/releases):
+[GitHub Release](https://github.com/sirfragles/lgmagic/releases).
+Each Release carries one `.deb` per supported distro version (Ubuntu
+22.04/24.04/26.04, Debian 12/13 — the `~<distro>` revision suffix names
+it), one `.rpm` per Fedora release (43/44) and the Arch package:
 
 ```bash
-# Ubuntu / Debian
-sudo apt install ./lgmagic-dkms_0.0.1-1_amd64.deb
+# Ubuntu 24.04 (pick the ~suffix matching your version)
+sudo apt install ./lgmagic-dkms_0.0.1-1~ubuntu24.04_amd64.deb
 
-# Fedora
-sudo dnf install ./lgmagic-0.0.1-1.fc42.x86_64.rpm
+# Fedora 44 (43 is on the Release page too)
+sudo dnf install ./lgmagic-0.0.1-1.fc44.x86_64.rpm
 
 # Arch
 sudo pacman -U ./lgmagic-0.0.1-1-x86_64.pkg.tar.zst

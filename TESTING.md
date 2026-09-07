@@ -278,13 +278,19 @@ Each distro package is built and sanity-checked in a clean container:
   `DisableSandbox` in pacman.conf (pacman 7 Landlock vs the Apple
   container VM).
 
-At 0.0.1 the three artifacts are `lgmagic-dkms_0.0.1-1_amd64.deb`,
-`lgmagic-0.0.1-1.fc*.x86_64.rpm` and
-`lgmagic-0.0.1-1-x86_64.pkg.tar.zst` (the DKMS source tree installs to
-`/usr/src/lgmagic-0.0.1/` and `dkms status` reports `lgmagic/0.0.1`).
+At 0.0.1 the Release carries eight artifacts: five `.deb`s
+(`lgmagic-dkms_0.0.1-1~ubuntu22.04_amd64.deb`,
+`lgmagic-dkms_0.0.1-1~ubuntu24.04_amd64.deb`,
+`lgmagic-dkms_0.0.1-1~ubuntu26.04_amd64.deb`,
+`lgmagic-dkms_0.0.1-1~debian12_amd64.deb`,
+`lgmagic-dkms_0.0.1-1~debian13_amd64.deb`), two `.rpm`s
+(`lgmagic-0.0.1-1.fc43.x86_64.rpm`, `lgmagic-0.0.1-1.fc44.x86_64.rpm`)
+and `lgmagic-0.0.1-1-x86_64.pkg.tar.zst` (the DKMS source tree installs
+to `/usr/src/lgmagic-0.0.1/` and `dkms status` reports `lgmagic/0.0.1`).
 
-CI runs all three (see `.github/workflows/ci.yml`); the release workflow
-attaches all three artifacts to the tag release.
+CI runs the three packaging flows (see `.github/workflows/ci.yml`); the
+release workflow builds the full per-distro set and attaches all eight
+artifacts to the tag release.
 
 ## 6. Manual hardware checklist
 

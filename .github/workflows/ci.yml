@@ -424,7 +424,7 @@ jobs:
             deb)  apt-get update -q && apt-get install -qy git ;;
             rpm|el) dnf install -y git ;;
             arch) pacman -Sy --noconfirm --needed git ;;
-            suse) zypper --non-interactive install git ;;
+            suse) zypper --non-interactive refresh && zypper --non-interactive install git ;;
           esac
 
       - uses: actions/checkout@v4
@@ -448,8 +448,15 @@ jobs:
           export DEBIAN_FRONTEND=noninteractive
           apt-get update -q
           apt-get install -qy dkms gcc make libsystemd-dev pkg-config
-          apt-get install -qy linux-image-amd64
-          apt-get install -qy linux-headers-amd64
+          # Kernel package names differ: Debian ships linux-image-amd64,
+          # Ubuntu linux-image-generic (linux-image-amd64 does not exist
+          # there - "no installation candidate").
+          . /etc/os-release
+          case "$ID" in
+            ubuntu) apt-get install -qy linux-image-generic linux-headers-generic ;;
+            debian) apt-get install -qy linux-image-amd64 linux-headers-amd64 ;;
+            *) echo "::error::unexpected deb-family ID $ID"; exit 1 ;;
+          esac
 
       - name: Install dkms, toolchain and kernel (rpm)
         if: matrix.family == 'rpm'
@@ -474,6 +481,9 @@ jobs:
       - name: Install dkms, toolchain and kernel (suse)
         if: matrix.family == 'suse'
         run: |
+          # Tumbleweed is rolling: the image's snapshot repos 404 after
+          # a few days, so refresh to the current snapshot first.
+          zypper --non-interactive refresh
           zypper --non-interactive install \
             dkms gcc make pkgconf systemd-devel kernel-default kernel-default-devel
 
@@ -499,10 +509,17 @@ jobs:
         run: dkms add lgmagic/$V
 
       - name: dkms build
-        run: dkms build lgmagic/$V -k "$KVER"
+        run: |
+          if ! dkms build lgmagic/$V -k "$KVER"; then
+            echo "=== make.log ==="
+            tail -60 "/var/lib/dkms/lgmagic/$V/build/make.log" || true
+            exit 1
+          fi
         # dkms drives its own job control (serial here: one module, and a
         # deterministic log beats -j noise); the kernel build itself
         # should stay -j1 in this context - the Makefile is not touched.
+        # On failure the tail of make.log is printed - the dkms wrapper
+        # only names the log file, and the compile error is what matters.
 
       - name: dkms install
         run: dkms install lgmagic/$V -k "$KVER"

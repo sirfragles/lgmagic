@@ -21,6 +21,30 @@
 
 #include "lgmagic_airmouse.h"
 
+/* lgmagic_airmouse.c does single-precision float math, compiled with
+ * -msse (kernel/Makefile) so it builds against distro kernels that use
+ * -mno-sse (Debian 12, RHEL-family). Any entry into that code must
+ * therefore save/restore the kernel FPU state the standard way; both
+ * call sites are process context (HID report handling, probe-time
+ * firmware load) and do no sleeping in between. No-op elsewhere. */
+#ifdef CONFIG_X86
+#include <asm/fpu/api.h>
+#endif
+
+static inline void lgmagic_fpu_begin(void)
+{
+#ifdef CONFIG_X86
+	kernel_fpu_begin();
+#endif
+}
+
+static inline void lgmagic_fpu_end(void)
+{
+#ifdef CONFIG_X86
+	kernel_fpu_end();
+#endif
+}
+
 static int debug = 1;
 module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "Debug message level (0=quiet, 1=normal, 2=verbose)");
@@ -182,7 +206,12 @@ static int lgmagic_raw_event(struct hid_device *hdev, struct hid_report *report,
 
 	if (airmouse && !raw_only)
 	{
-		int bigmove = lgmagic_calc_mouse(&drvdata->calib, drvdata->gyro_acc, airmouse_threshold, imu, mouse);
+		int bigmove;
+
+		lgmagic_fpu_begin();
+		bigmove = lgmagic_calc_mouse(&drvdata->calib, drvdata->gyro_acc, airmouse_threshold, imu, mouse);
+		lgmagic_fpu_end();
+
 		if (bigmove)
 			drvdata->mode = 1;
 
@@ -236,6 +265,7 @@ static void lgmagic_sanitize_mac(const char *uniq, char *out)
 static int lgmagic_load_fw(const char *fwname, struct device *dev, struct lgmagic_drvdata *drvdata)
 {
 	int ret;
+	int calib_ok;
 	const struct firmware *fw;
 
 	ret = request_firmware(&fw, fwname, dev);
@@ -243,7 +273,12 @@ static int lgmagic_load_fw(const char *fwname, struct device *dev, struct lgmagi
 		lgmagic_dev_info(dev, "Loading LG Magic calibration");
 		memcpy(&drvdata->calib, fw->data, sizeof(struct lgmagic_airmouse_calib));
 		release_firmware(fw);
-		if (lgmagic_validate_calib(&drvdata->calib))
+
+		lgmagic_fpu_begin();
+		calib_ok = (lgmagic_validate_calib(&drvdata->calib) == 0);
+		lgmagic_fpu_end();
+
+		if (!calib_ok)
 		{
 			lgmagic_dev_warn(dev, "Calibration table isn't valid. Airmouse disabled");
 			memset(&drvdata->calib, 0, sizeof(struct lgmagic_airmouse_calib));

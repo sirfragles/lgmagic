@@ -46,13 +46,33 @@ jobs:
         # carries V (it must - the release process bumps the tree in the
         # same commit as the variable, see RELEASING.md).
 
-  # Debian: test-gated build of the .deb on the Ubuntu runner.
+  # Multi-distro Debian-family releases: one build leg per supported
+  # distro version (the per-platform matrix pattern), each leg tagging
+  # the package revision with the distro so all five .debs coexist on
+  # the same Release page under distinct names.
   deb:
     needs: gate
     runs-on: ubuntu-latest
     env:
       V: ${{ vars.VERSION }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { image: "ubuntu:22.04", dist: ubuntu-22.04 }
+          - { image: "ubuntu:24.04", dist: ubuntu-24.04 }
+          - { image: "ubuntu:26.04", dist: ubuntu-26.04 }
+          - { image: "debian:12", dist: debian-12 }
+          - { image: "debian:13", dist: debian-13 }
+    container:
+      image: ${{ matrix.image }}
     steps:
+      # The official base images ship no git; actions/checkout needs one.
+      - name: Install git
+        run: |
+          export DEBIAN_FRONTEND=noninteractive
+          apt-get update -q && apt-get install -qy git
+
       - uses: actions/checkout@v4
 
       - name: Stamp the version from the VERSION variable
@@ -60,51 +80,77 @@ jobs:
 
       - name: Install build and packaging dependencies
         run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            build-essential \
-            linux-headers-$(uname -r) \
-            linux-libc-dev \
-            libsystemd-dev pkg-config \
-            dkms debhelper dpkg-dev fakeroot
-        # Same set as ci.yml; see that workflow for why each package is
-        # needed. The gate above guarantees the tag is v<VERSION>, and
-        # the sync step guarantees the tree stamps carry V.
+          export DEBIAN_FRONTEND=noninteractive
+          apt-get update -q
+          apt-get install -qy build-essential pkg-config \
+            libsystemd-dev debhelper dkms dpkg-dev
 
       - name: Run the full test suite
         run: make check
-        # Gate the release on the tools + unit tests + cli_smoke.sh.
+        # Gate the release on the tools + unit tests + cli_smoke.sh, on
+        # the PRISTINE tree: the distro-tagged changelog written by the
+        # next step is a container-local packaging detail that
+        # check_version_sync would (correctly, for the repo tree) reject.
 
-      - name: Clean build artifacts before packaging
-        run: make clean
-        # Keep the CI's build artifacts (.o/.ko, the binaries) out of the
-        # module sources that debian/rules ships into /usr/src/lgmagic-<VERSION>.
-
-      - name: Build the Debian package
-        run: dpkg-buildpackage -us -uc -b
-        # Unsigned (-us -uc), binary-only (-b); the .deb lands in the
-        # PARENT directory (../lgmagic-dkms_*.deb).
-
-      - name: Stage the .deb inside the workspace
+      - name: Tag the package revision with the distro
         run: |
+          # The repo changelog stays "0.0.1-1 unstable" (sync-version.sh
+          # owns that line); this leg rewrites only its CONTAINER copy,
+          # so the .deb filename carries the distro:
+          #   lgmagic-dkms_0.0.1-1~ubuntu24.04_amd64.deb
+          # The ~<distro> revision follows the widespread convention
+          # (Tailscale, Docker CE): it keeps the five files distinct on
+          # the Release page, and its ordering below the plain revision
+          # means a distro's own repackaging always wins. dkms.conf,
+          # debian/rules and postinst all derive the plain $V from the
+          # revision, so the DKMS tree stays /usr/src/lgmagic-$V and the
+          # registration lgmagic/$V on every distro.
+          . /etc/os-release
+          CODENAME=${VERSION_CODENAME:-unstable}
+          REV="$V-1~${ID}${VERSION_ID}"
+          sed -i "1c\\lgmagic ($REV) $CODENAME; urgency=medium" debian/changelog
+          echo "revision: $REV (distribution $CODENAME)"
+          head -1 debian/changelog
+
+      - name: Clean and build the package
+        run: |
+          make clean
+          DEB_BUILD_OPTIONS=nocheck dpkg-buildpackage -us -uc -b
           mkdir -p dist
           cp ../lgmagic-dkms_*.deb dist/
+          ls -la dist/
+        # DEB_BUILD_OPTIONS=nocheck: dh_auto_test would re-run make check
+        # against the distro-tagged changelog and trip the same version
+        # guard that already passed above on the pristine tree.
 
       - name: Upload the .deb artifact
         uses: actions/upload-artifact@v4
         with:
-          name: lgmagic-dkms-deb
+          name: lgmagic-deb-${{ matrix.dist }}
           path: dist/lgmagic-dkms_*.deb
           if-no-files-found: error
 
-  # Fedora: rpmbuild in a fedora container.
+  # Fedora: one leg per supported Fedora release. The rpm filename gets
+  # its .fc<N> dist tag from the build container automatically, so the
+  # two legs produce distinct, self-describing artifacts.
   rpm:
     needs: gate
     runs-on: ubuntu-latest
-    container: fedora:latest
     env:
       V: ${{ vars.VERSION }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { image: "fedora:43", dist: fedora-43 }
+          - { image: "fedora:44", dist: fedora-44 }
+    container:
+      image: ${{ matrix.image }}
     steps:
+      # The official base images ship no git; actions/checkout needs one.
+      - name: Install git
+        run: dnf install -y git
+
       - uses: actions/checkout@v4
 
       - name: Stamp the version from the VERSION variable
@@ -128,19 +174,33 @@ jobs:
           cp rpm/lgmagic.spec ~/rpmbuild/SPECS/
           rpmbuild -bb ~/rpmbuild/SPECS/lgmagic.spec
 
+      - name: Verify the package contents
+        run: |
+          rpm=$(ls ~/rpmbuild/RPMS/*/lgmagic-$V*.rpm)
+          for f in /usr/bin/lgmagic /usr/libexec/lgmagicd \
+                   /usr/lib/systemd/system/lgmagicd.service \
+                   /usr/lib/tmpfiles.d/lgmagic.conf \
+                   /usr/share/polkit-1/actions/org.lgmagic.policy \
+                   /usr/share/dbus-1/system.d/org.lgmagic.conf \
+                   /etc/lgmagic/config.toml \
+                   /usr/lib/udev/rules.d/51-lgimu.rules \
+                   /usr/src/lgmagic-$V/dkms.conf; do
+            rpm -qlp "$rpm" | grep -qxF "$f" || { echo "missing: $f"; exit 1; }
+          done
+          echo "OK: all rpm files present"
+
       - name: Stage the .rpm inside the workspace
         run: |
           # upload-artifact's globber fails on absolute paths with a
           # wildcard in a middle segment (RPMS/*/) - stage the file in
-          # the workspace and upload a last-segment-only glob instead
-          # (the same pattern the deb job uses).
+          # the workspace and upload a last-segment-only glob instead.
           mkdir -p dist
           cp ~/rpmbuild/RPMS/*/lgmagic-[0-9]*.rpm dist/
 
       - name: Upload the .rpm artifact
         uses: actions/upload-artifact@v4
         with:
-          name: lgmagic-rpm
+          name: lgmagic-rpm-${{ matrix.dist }}
           # [0-9] right after the dash: excludes lgmagic-debuginfo/debugsource.
           path: dist/lgmagic-[0-9]*.rpm
           if-no-files-found: error
@@ -192,7 +252,8 @@ jobs:
           path: /tmp/pkg/lgmagic-[0-9]*.pkg.tar.zst
           if-no-files-found: error
 
-  # Attach all three packages to the GitHub Release for the tag.
+  # Attach all packages (five .debs, two .rpms, the Arch package) to the
+  # GitHub Release for the tag.
   release:
     needs: [deb, rpm, arch]
     runs-on: ubuntu-latest
@@ -216,8 +277,9 @@ jobs:
         # a digit after the dash) must fail, not pass. The verify job
         # below double-checks the Release contents regardless.
 
-  # Final check: the Release must carry EXACTLY the three expected
-  # assets. A stray or missing package fails the whole run loudly.
+  # Final check: the Release must carry EXACTLY the expected set - five
+  # distro .debs, two Fedora .rpms and the Arch package. A stray or
+  # missing package fails the whole run loudly.
   verify:
     needs: release
     runs-on: ubuntu-latest
@@ -226,26 +288,26 @@ jobs:
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
-      - name: Assert the three release assets
+      - name: Assert the release asset set
         run: |
           set -euo pipefail
           names=$(gh release view "$GITHUB_REF_NAME" --json assets --jq '.assets[].name')
           total=$(printf '%s\n' "$names" | grep -c . || true)
-          if [ "$total" -ne 3 ]; then
-            echo "::error::expected exactly 3 assets on $GITHUB_REF_NAME, found $total:"
+          if [ "$total" -ne 8 ]; then
+            echo "::error::expected exactly 8 assets on $GITHUB_REF_NAME, found $total:"
             printf '%s\n' "$names" | sed 's/^/    /'
             exit 1
           fi
-          one() { # REGEX LABEL
+          count() { # REGEX WANT LABEL
             local n
             n=$(printf '%s\n' "$names" | grep -cE "$1" || true)
-            if [ "$n" -ne 1 ]; then
-              echo "::error::expected exactly 1 asset matching $2 ($1), found $n:"
+            if [ "$n" -ne "$2" ]; then
+              echo "::error::expected $2 asset(s) matching $3 ($1), found $n:"
               printf '%s\n' "$names" | sed 's/^/    /'
               exit 1
             fi
           }
-          one '^lgmagic-dkms_.*\.deb$' 'the .deb'
-          one '^lgmagic-[0-9].*\.rpm$' 'the .rpm'
-          one '^lgmagic-[0-9].*\.pkg\.tar\.zst$' 'the .pkg.tar.zst'
-          echo "OK: Release $GITHUB_REF_NAME carries exactly the 3 expected assets"
+          count '^lgmagic-dkms_.*_amd64\.deb$' 5 'the five distro .debs'
+          count '^lgmagic-[0-9].*\.rpm$' 2 'the two Fedora .rpms'
+          count '^lgmagic-[0-9].*\.pkg\.tar\.zst$' 1 'the Arch package'
+          echo "OK: Release $GITHUB_REF_NAME carries exactly the 8 expected assets"
