@@ -495,6 +495,16 @@ jobs:
           # refreshed zypper to the current Tumbleweed snapshot, so no
           # refresh here. The install still retries - download.opensuse
           # .org 404s transiently even on a live snapshot.
+          #
+          # Older snapshots ship busybox-gawk, which conflicts with the
+          # real gawk that dkms requires - zypper cannot resolve that in
+          # non-interactive mode (it offers the deinstallation but will
+          # not pick it, and cancels). Drop it first: that is exactly the
+          # solution zypper itself proposes. Newer snapshots dropped the
+          # package, hence the || true. Licenses are auto-accepted by
+          # non-interactive mode on current libzypp; the old
+          # --auto-agree-with-licenses flag no longer exists.
+          zypper --non-interactive remove busybox-gawk >/dev/null || true
           ok=0
           for i in 1 2 3; do
             if zypper --non-interactive install \
