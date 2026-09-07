@@ -23,18 +23,24 @@
 
 /* lgmagic_airmouse.c does single-precision float math, compiled with
  * -msse (kernel/Makefile) so it builds against distro kernels that use
- * -mno-sse (Debian 12, RHEL-family). Any entry into that code must
- * therefore save/restore the kernel FPU state the standard way; both
+ * -mno-sse (Debian 12, RHEL-family); on arm64 the same file drops
+ * -mgeneral-regs-only via CFLAGS_REMOVE. Any entry into that code must
+ * therefore save/restore the kernel FPU state the standard way -
+ * kernel_fpu_begin/end on x86, kernel_neon_begin/end on arm64. Both
  * call sites are process context (HID report handling, probe-time
  * firmware load) and do no sleeping in between. No-op elsewhere. */
 #ifdef CONFIG_X86
 #include <asm/fpu/api.h>
+#elif defined(CONFIG_ARM64)
+#include <linux/neon.h>
 #endif
 
 static inline void lgmagic_fpu_begin(void)
 {
 #ifdef CONFIG_X86
 	kernel_fpu_begin();
+#elif defined(CONFIG_ARM64)
+	kernel_neon_begin();
 #endif
 }
 
@@ -42,6 +48,8 @@ static inline void lgmagic_fpu_end(void)
 {
 #ifdef CONFIG_X86
 	kernel_fpu_end();
+#elif defined(CONFIG_ARM64)
+	kernel_neon_end();
 #endif
 }
 
@@ -77,6 +85,10 @@ static int imu_evdev = 0;
 module_param(imu_evdev, int, 0644);
 MODULE_PARM_DESC(imu_evdev, "Expose raw IMU");
 
+static int key_0x8000 = KEY_POWER;
+module_param(key_0x8000, int, 0644);
+MODULE_PARM_DESC(key_0x8000, "Keycode for HID code 0x8000, which is model-dependent: KEY_POWER on the MR20, but the channel-up key on the AN-MR19BA (its power key is IR-only and sends no BLE event - set this to KEY_CHANNELUP there)");
+
 struct lgmagic_drvdata {
 	struct input_dev *input_hid;
 	struct input_dev *input_imu;
@@ -89,12 +101,26 @@ struct lgmagic_drvdata {
 };
 
 #define LGMAGIC_CODE_WHEEL 0x8044
+#define LGMAGIC_CODE_MODELDEP 0x8000
+
+/* 0x8000 is the model-dependent button: KEY_POWER on the MR20, but the
+ * channel-up key on the AN-MR19BA (reported by a tester: its power key
+ * transmits IR only, so no BLE event ever arrives). The key_0x8000
+ * module parameter overrides the table default; anything out of the
+ * valid keycode range falls back to the table value. */
+static inline u16 lgmagic_btn_keycode(u16 code, u16 keycode)
+{
+	if (code == LGMAGIC_CODE_MODELDEP && key_0x8000 >= 0 &&
+	    key_0x8000 <= KEY_MAX)
+		return (u16)key_0x8000;
+	return keycode;
+}
 
 static const struct {
 	u16 code;
 	u16 keycode;
 } lg_btn_map[] = {
-	{ 0x8000, KEY_POWER },
+	{ LGMAGIC_CODE_MODELDEP, KEY_POWER },
 	{ 0x8099, KEY_SLEEP },
 	{ 0x8010, KEY_0 }, { 0x8011, KEY_1 }, { 0x8012, KEY_2 },
 	{ 0x8013, KEY_3 }, { 0x8014, KEY_4 }, { 0x8015, KEY_5 },
@@ -114,7 +140,6 @@ static const struct {
 	{ 0x805D, KEY_MEDIA }, // IVI
 	{ 0x800B, KEY_TV },
 	{ 0x8098, KEY_CONTEXT_MENU }, // STB MENU
-	//{ 0x8000, KEY_CHANNELUP }, // Somehow it collides with power button
 	{ 0x8001, KEY_CHANNELDOWN },
 	{ 0x8072, KEY_RED },
 	{ 0x8071, KEY_GREEN },
@@ -174,7 +199,7 @@ static int lgmagic_raw_event(struct hid_device *hdev, struct hid_report *report,
 		{
 			for (i = 0; i < ARRAY_SIZE(lg_btn_map); i++) {
 				if (lg_btn_map[i].code == btn_code) {
-					u16 report_keycode = lg_btn_map[i].keycode;
+					u16 report_keycode = lgmagic_btn_keycode(lg_btn_map[i].code, lg_btn_map[i].keycode);
 
 					if (lg_btn_map[i].code==LGMAGIC_CODE_WHEEL && drvdata->mode && !raw_only)
 						report_keycode = BTN_LEFT;
@@ -327,13 +352,17 @@ loaded:
 	drvdata->input_hid->id.product = hdev->product;
 
 	set_bit(EV_KEY, drvdata->input_hid->evbit);
+	/* EV_REP: let the input core generate autorepeat for held keys
+	 * (feedback from an AN-MR19BA tester). */
+	set_bit(EV_REP, drvdata->input_hid->evbit);
 	set_bit(EV_REL, drvdata->input_hid->evbit);
 	set_bit(REL_WHEEL, drvdata->input_hid->relbit);
 	set_bit(REL_X, drvdata->input_hid->relbit);
 	set_bit(REL_Y, drvdata->input_hid->relbit);
 
 	for (i = 0; i < ARRAY_SIZE(lg_btn_map); i++)
-		set_bit(lg_btn_map[i].keycode, drvdata->input_hid->keybit);
+		set_bit(lgmagic_btn_keycode(lg_btn_map[i].code,
+			lg_btn_map[i].keycode), drvdata->input_hid->keybit);
 
 	ret = input_register_device(drvdata->input_hid);
 	if (ret)

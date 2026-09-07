@@ -4,10 +4,12 @@ pkgname=lgmagic
 pkgver=0.0.1
 pkgrel=1
 pkgdesc="LG Magic Remote MR20 driver, daemon and tools"
-# x86_64 only for now: the airmouse filter uses FP math, which arm64
-# kbuild forbids by default (-mgeneral-regs-only; CC_FLAGS_FPU is an
-# x86-ism). Re-add 'aarch64' once the filter is integer math.
-arch=('x86_64')
+# arm64 works too: kernel/Makefile drops -mgeneral-regs-only for the
+# airmouse file (CFLAGS_REMOVE) and the call sites use
+# kernel_neon_begin/end. Not CI-tested on arm64 (the dkms-matrix legs
+# run amd64 containers); reported working on a Raspberry Pi by an
+# AN-MR19BA tester.
+arch=('x86_64' 'aarch64')
 url="https://github.com/sirfragles/lgmagic"
 license=('GPL-2.0-or-later')
 depends=('dkms' 'polkit' 'systemd-libs')
