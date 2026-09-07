@@ -424,7 +424,17 @@ jobs:
             deb)  apt-get update -q && apt-get install -qy git ;;
             rpm|el) dnf install -y git ;;
             arch) pacman -Sy --noconfirm --needed git ;;
-            suse) zypper --non-interactive refresh && zypper --non-interactive install git ;;
+            suse) ok=0
+                  # Tumbleweed is rolling: the image's snapshot repos
+                  # 404 after a few days, and download.opensuse.org is
+                  # flaky - retry the refresh before giving up.
+                  for i in 1 2 3; do
+                    if zypper --non-interactive refresh; then ok=1; break; fi
+                    echo "zypper refresh failed (attempt $i); retrying"
+                    sleep 10
+                  done
+                  [ "$ok" = 1 ] || { echo "::error::zypper refresh failed 3 times"; exit 1; }
+                  zypper --non-interactive install git ;;
           esac
 
       - uses: actions/checkout@v4
@@ -481,11 +491,21 @@ jobs:
       - name: Install dkms, toolchain and kernel (suse)
         if: matrix.family == 'suse'
         run: |
-          # Tumbleweed is rolling: the image's snapshot repos 404 after
-          # a few days, so refresh to the current snapshot first.
-          zypper --non-interactive refresh
-          zypper --non-interactive install \
-            dkms gcc make pkgconf systemd-devel kernel-default kernel-default-devel
+          # All steps share this container: the git step above already
+          # refreshed zypper to the current Tumbleweed snapshot, so no
+          # refresh here. The install still retries - download.opensuse
+          # .org 404s transiently even on a live snapshot.
+          ok=0
+          for i in 1 2 3; do
+            if zypper --non-interactive install \
+              dkms gcc make pkgconf systemd-devel kernel-default kernel-default-devel; then
+              ok=1
+              break
+            fi
+            echo "zypper install failed (attempt $i); retrying"
+            sleep 10
+          done
+          [ "$ok" = 1 ] || { echo "::error::zypper install failed 3 times"; exit 1; }
 
       - name: Discover the installed kernel version
         run: |

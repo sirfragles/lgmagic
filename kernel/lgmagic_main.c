@@ -172,7 +172,7 @@ static int lgmagic_raw_event(struct hid_device *hdev, struct hid_report *report,
 		drvdata->last_btncode = btn_code;
 		if (btn_code != 0)
 		{
-			for (int i = 0; i < ARRAY_SIZE(lg_btn_map); i++) {
+			for (i = 0; i < ARRAY_SIZE(lg_btn_map); i++) {
 				if (lg_btn_map[i].code == btn_code) {
 					u16 report_keycode = lg_btn_map[i].keycode;
 
