@@ -97,7 +97,10 @@ jobs:
           # The repo changelog stays "0.0.1-1 unstable" (sync-version.sh
           # owns that line); this leg rewrites only its CONTAINER copy,
           # so the .deb filename carries the distro:
-          #   lgmagic-dkms_0.0.1-1~ubuntu24.04_amd64.deb
+          #   lgmagic-dkms_0.0.1-1.ubuntu24.04_amd64.deb
+          # (dpkg-buildpackage maps the ~ to a . in the FILENAME; the
+          # control Version field keeps the tilde - which is what dpkg
+          # actually compares on upgrades).
           # The ~<distro> revision follows the widespread convention
           # (Tailscale, Docker CE): it keeps the five files distinct on
           # the Release page, and its ordering below the plain revision
@@ -291,7 +294,10 @@ jobs:
       - name: Assert the release asset set
         run: |
           set -euo pipefail
-          names=$(gh release view "$GITHUB_REF_NAME" --json assets --jq '.assets[].name')
+          # --repo: this job has no checkout, and gh resolves the
+          # repository from the git remote (absent on the bare
+          # workspace) otherwise.
+          names=$(gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name')
           total=$(printf '%s\n' "$names" | grep -c . || true)
           if [ "$total" -ne 8 ]; then
             echo "::error::expected exactly 8 assets on $GITHUB_REF_NAME, found $total:"

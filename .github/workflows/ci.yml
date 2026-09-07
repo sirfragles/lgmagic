@@ -592,6 +592,25 @@ jobs:
           # back to uname -r (the runner kernel, not in this container).
           make clean KVER="$KVER"
 
+  # One stable check name for the master-trunk ruleset: GitHub registers
+  # a separate check run per matrix combination ("dkms-matrix
+  # (ubuntu:22.04, deb)", ...), and ruleset required_status_checks match
+  # exact context names only - a bare "dkms-matrix" context would never
+  # be satisfied and every PR would be blocked. This summary job is green
+  # iff every distro leg is green.
+  dkms-matrix-gate:
+    needs: dkms-matrix
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Assert all distro legs passed
+        run: |
+          if [ "${{ needs.dkms-matrix.result }}" != "success" ]; then
+            echo "::error::dkms-matrix did not fully succeed (result: ${{ needs.dkms-matrix.result }})"
+            exit 1
+          fi
+          echo "OK: all dkms-matrix legs passed"
+
   # Static analysis of every shell script. Explicit file list: adding a
   # new script to CI is a deliberate change, not glob luck.
   shellcheck:
