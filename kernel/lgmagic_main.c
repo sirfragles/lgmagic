@@ -18,6 +18,7 @@
 #include <linux/hid.h>
 #include <linux/input.h>
 #include <linux/firmware.h>
+#include <linux/version.h>
 
 #include "lgmagic_airmouse.h"
 
@@ -26,32 +27,17 @@
  * -mno-sse (Debian 12, RHEL-family); on arm64 the same file drops
  * -mgeneral-regs-only via CFLAGS_REMOVE. Any entry into that code must
  * therefore save/restore the kernel FPU state the standard way -
- * kernel_fpu_begin/end on x86, kernel_neon_begin/end on arm64. Both
- * call sites are process context (HID report handling, probe-time
- * firmware load) and do no sleeping in between. No-op elsewhere. */
+ * kernel_fpu_begin/end on x86, kernel_neon_begin/end on arm64. Since
+ * kernel 7.0 the arm64 API takes a caller-owned buffer (Ard Biesheuvel's
+ * on-stack FPSIMD rework) - kept in drvdata so begin and end hand in the
+ * same one. Both call sites are process context (HID report handling,
+ * probe-time firmware load) and do no sleeping in between. No-op
+ * elsewhere. */
 #ifdef CONFIG_X86
 #include <asm/fpu/api.h>
 #elif defined(CONFIG_ARM64)
-#include <linux/neon.h>
+#include <asm/neon.h>
 #endif
-
-static inline void lgmagic_fpu_begin(void)
-{
-#ifdef CONFIG_X86
-	kernel_fpu_begin();
-#elif defined(CONFIG_ARM64)
-	kernel_neon_begin();
-#endif
-}
-
-static inline void lgmagic_fpu_end(void)
-{
-#ifdef CONFIG_X86
-	kernel_fpu_end();
-#elif defined(CONFIG_ARM64)
-	kernel_neon_end();
-#endif
-}
 
 static int debug = 1;
 module_param(debug, int, 0644);
@@ -98,7 +84,36 @@ struct lgmagic_drvdata {
 	float gyro_acc[3];
 	int mode;
 	struct lgmagic_airmouse_calib calib;
+#if defined(CONFIG_ARM64) && LINUX_VERSION_CODE >= KERNEL_VERSION(7, 0, 0)
+	struct user_fpsimd_state neon_state;
+#endif
 };
+
+static inline void lgmagic_fpu_begin(struct lgmagic_drvdata *drvdata)
+{
+#ifdef CONFIG_X86
+	kernel_fpu_begin();
+#elif defined(CONFIG_ARM64)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(7, 0, 0)
+	kernel_neon_begin(&drvdata->neon_state);
+#else
+	kernel_neon_begin();
+#endif
+#endif
+}
+
+static inline void lgmagic_fpu_end(struct lgmagic_drvdata *drvdata)
+{
+#ifdef CONFIG_X86
+	kernel_fpu_end();
+#elif defined(CONFIG_ARM64)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(7, 0, 0)
+	kernel_neon_end(&drvdata->neon_state);
+#else
+	kernel_neon_end();
+#endif
+#endif
+}
 
 #define LGMAGIC_CODE_WHEEL 0x8044
 #define LGMAGIC_CODE_MODELDEP 0x8000
@@ -233,9 +248,9 @@ static int lgmagic_raw_event(struct hid_device *hdev, struct hid_report *report,
 	{
 		int bigmove;
 
-		lgmagic_fpu_begin();
+		lgmagic_fpu_begin(drvdata);
 		bigmove = lgmagic_calc_mouse(&drvdata->calib, drvdata->gyro_acc, airmouse_threshold, imu, mouse);
-		lgmagic_fpu_end();
+		lgmagic_fpu_end(drvdata);
 
 		if (bigmove)
 			drvdata->mode = 1;
@@ -299,9 +314,9 @@ static int lgmagic_load_fw(const char *fwname, struct device *dev, struct lgmagi
 		memcpy(&drvdata->calib, fw->data, sizeof(struct lgmagic_airmouse_calib));
 		release_firmware(fw);
 
-		lgmagic_fpu_begin();
+		lgmagic_fpu_begin(drvdata);
 		calib_ok = (lgmagic_validate_calib(&drvdata->calib) == 0);
-		lgmagic_fpu_end();
+		lgmagic_fpu_end(drvdata);
 
 		if (!calib_ok)
 		{
