@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE policyconfig PUBLIC
+ "-//freedesktop//DTD PolicyKit Policy Configuration 1.0//EN"
+ "http://www.freedesktop.org/standards/PolicyKit/1.0/policyconfig.dtd">
+<policyconfig>
+
+  <vendor>lg-magic</vendor>
+  <vendor_url>https://github.com/sirfragles/lgmagic</vendor_url>
+
+  <!-- Two write actions cover the whole mutating surface of the daemon;
+       all reads (ListDevices, GetStatus, the profile/button lists) stay
+       polkit-free. -->
+
+  <action id="org.lgmagic.profile-set">
+    <description>Switch LG Magic Remote profiles and adjust sensitivity</description>
+    <message>Authentication is required to change the LG Magic Remote profile</message>
+    <defaults>
+      <allow_any>no</allow_any>
+      <allow_inactive>no</allow_inactive>
+      <!-- Profile switching is a user preference of the active session -
+           no password, but only from a real seat. -->
+      <allow_active>yes</allow_active>
+    </defaults>
+  </action>
+
+  <action id="org.lgmagic.modify-input">
+    <description>Change LG Magic Remote button mappings and calibration</description>
+    <message>Authentication is required to change the LG Magic Remote input mapping</message>
+    <defaults>
+      <allow_any>auth_admin</allow_any>
+      <allow_inactive>auth_admin</allow_inactive>
+      <allow_active>auth_admin_keep</allow_active>
+    </defaults>
+  </action>
+
+</policyconfig>

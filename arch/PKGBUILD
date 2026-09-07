@@ -1,0 +1,40 @@
+# Maintainer: Ilya Chelyadin <sirfragles@users.noreply.github.com>
+# Contributor: lg-magic v2.0.1
+
+pkgname=lg-magic
+pkgver=2.0.1
+pkgrel=1
+pkgdesc="LG Magic Remote MR20 driver, daemon and tools"
+arch=('x86_64' 'aarch64')
+url="https://github.com/sirfragles/lgmagic"
+license=('GPL-2.0-or-later')
+depends=('dkms' 'polkit' 'systemd-libs')
+makedepends=('gcc' 'make' 'pkgconf' 'systemd')
+install=lg-magic.install
+source=("lg-magic-$pkgver.tar.gz::https://github.com/sirfragles/lgmagic/archive/refs/tags/v$pkgver.tar.gz")
+# CI pre-seeds SRCDEST from the checkout; the URL serves direct builds.
+sha256sums=('SKIP')
+backup=('etc/lg-magic/config.toml')
+
+build() {
+  cd "$srcdir/lg-magic-$pkgver"
+  make tools
+}
+
+package() {
+  cd "$srcdir/lg-magic-$pkgver"
+  make install DESTDIR="$pkgdir" PREFIX=/usr \
+      UDEV_DIR=/usr/lib/udev/rules.d \
+      UNIT_DIR=/usr/lib/systemd/system \
+      TMPFILES_DIR=/usr/lib/tmpfiles.d
+  # Arch has no /usr/libexec: patch the unit and install the daemon into
+  # /usr/lib instead.
+  sed -i 's|ExecStart=/usr/libexec/lg-magicd|ExecStart=/usr/lib/lg-magicd|' \
+      "$pkgdir/usr/lib/systemd/system/lg-magicd.service"
+  install -Dm 0755 tools/lg-magicd "$pkgdir/usr/lib/lg-magicd"
+  # The DKMS tree: dkms.conf + the module sources.
+  install -d "$pkgdir/usr/src/lg-magic-$pkgver"
+  cp -r kernel include "$pkgdir/usr/src/lg-magic-$pkgver/"
+  install -m 644 Makefile COPYING dkms.conf \
+      "$pkgdir/usr/src/lg-magic-$pkgver/"
+}

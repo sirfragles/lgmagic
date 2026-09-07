@@ -1,0 +1,21 @@
+# lg-magic global configuration (v2, TOML).
+# Precedence: built-in defaults < this file < ~/.config/lg-magic/config.toml
+# < --config FILE < CLI flags.  Unknown keys are ignored; a malformed file
+# is skipped with a warning.
+
+# Device selection: "" = auto-detect.
+imu_device = ""
+hidraw_device = ""
+
+# Calibration JSON used by `lg-magic imu`/`lg-magic analyze` when no
+# --calib flag is given.  The daemon resolves per-device calibration
+# from the device file itself, not from here.
+default_calib = ""
+
+# IMU/airmouse tuning (daemon and standalone paths).
+lpf_alpha = 0.2
+mouse_scale = 30.0
+madgwick_beta = 0.1
+alpha = 0.2
+mouse_k = 0.5
+gyro_scale_default = 0.07

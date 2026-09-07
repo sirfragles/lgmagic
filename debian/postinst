@@ -1,0 +1,32 @@
+#!/bin/sh
+set -e
+
+# Build and install the module via DKMS; every step is best-effort - a
+# machine without matching kernel headers (or with Secure Boot rejecting
+# the unsigned module) must never get a broken package transaction. The
+# same policy as the rpm spec and the Arch .install file.
+if [ "$1" = configure ] && [ -x /usr/sbin/dkms ]; then
+    # The DKMS module version follows the package version (2.0.1-1 ->
+    # 2.0.1); read it instead of hardcoding it in the maintainer script.
+    V=$(dpkg-query -W -f='${Version}' lg-magic-dkms 2>/dev/null | cut -d- -f1)
+    [ -n "$V" ] || V=2.0
+    dkms add -m lg-magic -v "$V" || true
+    dkms build -m lg-magic -v "$V" || true
+    dkms install -m lg-magic -v "$V" || true
+fi
+
+#DEBHELPER#
+
+# Reload the udev rules so the input group gets access to the IMU evdev,
+# the hidraw node and /dev/uinput.
+if [ -x /usr/bin/udevadm ]; then
+    udevadm control --reload-rules || true
+    udevadm trigger || true
+fi
+
+# Secure Boot may reject the unsigned module - never break the install.
+modprobe lg_magic || true
+
+echo "lg-magic: driver installed."
+echo "Run 'sudo lg-magic setup' to pick the input mode, configure the"
+echo "module and calibrate the remote."

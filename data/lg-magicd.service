@@ -1,0 +1,31 @@
+[Unit]
+Description=LG Magic Remote daemon
+After=bluetooth.target
+Wants=bluetooth.target
+
+[Service]
+Type=dbus
+BusName=org.lgmagic
+ExecStart=/usr/libexec/lg-magicd
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=on-failure
+RestartSec=2
+# bez DevicePolicy=closed — zrywa enumerację/inotify /dev/input
+ProtectSystem=full
+ReadWritePaths=/var/lib/lg-magic
+ProtectHome=true
+PrivateTmp=true
+NoNewPrivileges=true
+CapabilityBoundingSet=
+LockPersonality=true
+ProtectKernelTunables=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+RestrictAddressFamilies=AF_UNIX
+IPAddressDeny=any
+UMask=0022
+
+[Install]
+WantedBy=multi-user.target

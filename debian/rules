@@ -1,0 +1,30 @@
+#!/usr/bin/make -f
+
+%:
+	dh $@
+
+# dkms.conf carries PACKAGE_VERSION, so the source directory must be
+# /usr/src/lg-magic-<version>.
+VERSION := $(shell dpkg-parsechangelog -S Version | sed 's/-.*//')
+
+# Build only the tools here; the module itself is built by DKMS on the
+# target machine.
+override_dh_auto_build:
+	$(MAKE) tools
+
+# dh_dkms is deliberately not used: its generated postinst fails the
+# package install when the DKMS build fails (no matching kernel headers,
+# Secure Boot). The postinst/prerm run every DKMS step best-effort
+# instead, like the rpm spec and the Arch .install file. Install the
+# whole DKMS tree (dkms.conf + the module sources) here.
+override_dh_auto_install:
+	$(MAKE) DESTDIR=$(CURDIR)/debian/lg-magic-dkms PREFIX=/usr install
+	install -d $(CURDIR)/debian/lg-magic-dkms/usr/src/lg-magic-$(VERSION)
+	cp -r kernel include $(CURDIR)/debian/lg-magic-dkms/usr/src/lg-magic-$(VERSION)/
+	install -m 644 Makefile COPYING dkms.conf \
+		$(CURDIR)/debian/lg-magic-dkms/usr/src/lg-magic-$(VERSION)/
+
+# The daemon is enabled and started by the setup wizard, never by the
+# package install.
+override_dh_installsystemd:
+	dh_installsystemd --no-enable --no-start

@@ -1,0 +1,36 @@
+# Kernel module
+*.cmd
+*.ko
+*.mod*
+*.o
+Module.symvers
+modules.order
+.tmp_versions/
+
+# Temorary calibration files
+*.json
+*.csv
+*.bin
+
+# Userspace tools build artifacts
+tools/lg-magic
+tools/tests/test_*
+!tools/tests/*.c
+!tools/tests/*.h
+!tools/tests/*.sh
+
+# Test fixtures are committed on purpose
+!testdata/
+!testdata/*
+
+# Python artifacts
+__pycache__/
+*.py[codz]
+*$py.class
+
+# macOS
+.DS_Store
+
+# agent tooling receipts (not part of the project)
+receipts/
+review-receipts/
