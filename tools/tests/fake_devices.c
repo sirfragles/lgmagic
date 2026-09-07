@@ -14,6 +14,11 @@
  *             --kbd PATH --release KEY_UP release only
  *             --kbd PATH --wheel N        REL_WHEEL N
  *             --imu PATH --gyro X,Y,Z     ABS_RX/RY/RZ + MSC counter
+ *                                         (repeatable: one frame per --gyro,
+ *                                          emitted in order - the airmouse
+ *                                          engine works on frame-to-frame
+ *                                          deltas, so tests drive it with a
+ *                                          baseline frame followed by motion)
  *   watch   read and print frames from an evdev node (e.g. the daemon's
  *           per-remote "lgmagicd keyboard <identity>" outputs).
  *
@@ -57,7 +62,7 @@ static void usage(FILE *out)
 	      "       fake_devices emit --kbd PATH --press NAME\n"
 	      "       fake_devices emit --kbd PATH --release NAME\n"
 	      "       fake_devices emit --kbd PATH --wheel N\n"
-	      "       fake_devices emit --imu PATH --gyro X,Y,Z\n"
+	      "       fake_devices emit --imu PATH --gyro X,Y,Z [--gyro ...]\n"
 	      "       fake_devices watch PATH [--ms MS]\n", out);
 }
 
@@ -386,12 +391,27 @@ static int emit_gyro(const char *path, int gx, int gy, int gz)
 	return 0;
 }
 
+/* Emit each gyro frame in order - one input frame per --gyro flag. */
+static int emit_gyro_frames(const char *path, int frames[][3], int n)
+{
+	int i;
+
+	for (i = 0; i < n; i++)
+		if (emit_gyro(path, frames[i][0], frames[i][1],
+			      frames[i][2]) < 0)
+			return 1;
+	return 0;
+}
+
+#define MAX_GYRO_FRAMES 8
+
 static int cmd_emit(int argc, char **argv)
 {
 	const char *kbd = NULL, *imu = NULL;
 	const char *key = NULL, *press = NULL, *release = NULL;
 	int wheel = 0, have_wheel = 0;
-	int gx = 0, gy = 0, gz = 0, have_gyro = 0;
+	int frames[MAX_GYRO_FRAMES][3];
+	int n_frames = 0;
 	int i;
 
 	for (i = 1; i < argc; i++) {
@@ -409,12 +429,19 @@ static int cmd_emit(int argc, char **argv)
 			wheel = atoi(argv[++i]);
 			have_wheel = 1;
 		} else if (strcmp(argv[i], "--gyro") == 0 && i + 1 < argc) {
-			if (sscanf(argv[++i], "%d,%d,%d", &gx, &gy, &gz) != 3) {
+			if (n_frames >= MAX_GYRO_FRAMES) {
+				fprintf(stderr, "fake_devices: too many --gyro "
+					"frames\n");
+				return 1;
+			}
+			if (sscanf(argv[++i], "%d,%d,%d", &frames[n_frames][0],
+				   &frames[n_frames][1],
+				   &frames[n_frames][2]) != 3) {
 				fprintf(stderr, "fake_devices: --gyro needs "
 					"X,Y,Z\n");
 				return 1;
 			}
-			have_gyro = 1;
+			n_frames++;
 		} else {
 			usage(stderr);
 			return 1;
@@ -428,8 +455,8 @@ static int cmd_emit(int argc, char **argv)
 		return emit_key_edge(kbd, release, 0);
 	if (have_wheel && kbd)
 		return emit_wheel(kbd, wheel);
-	if (have_gyro && imu)
-		return emit_gyro(imu, gx, gy, gz);
+	if (n_frames && imu)
+		return emit_gyro_frames(imu, frames, n_frames);
 	usage(stderr);
 	return 1;
 }

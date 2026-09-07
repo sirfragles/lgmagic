@@ -354,6 +354,22 @@ grep -q "KEY KEY_VOLUMEUP 1" "$TMP/w6.out" || fail "reconnect: mapped key after 
 echo "OK reconnect"
 
 # ------------------------------------------------------------------ #
+# 6b. Parked POI: a constant nonzero gyro across frames must not move #
+#     the mouse (the drift bug: after handling, the remote parks its  #
+#     pointer output at hundreds of counts for tens of seconds)       #
+# ------------------------------------------------------------------ #
+
+# the re-add reset the engine: the first frame is the baseline
+( "$FAKE" watch "$OUTM" --ms 800 > "$TMP/w6b.out" 2>&1 ) &
+sleep 0.1
+"$FAKE" emit --imu "$IMU2" --gyro 5,483,1954
+sleep 0.2
+"$FAKE" emit --imu "$IMU2" --gyro 5,483,1954
+sleep 1.0
+[ -s "$TMP/w6b.out" ] && fail "parked gyro: unexpected movement: $(cat "$TMP/w6b.out")"
+echo "OK parked gyro"
+
+# ------------------------------------------------------------------ #
 # 7. Grab: raw events hidden while the daemon lives, visible after    #
 #    SIGKILL (the grab dies with the fd)                              #
 # ------------------------------------------------------------------ #

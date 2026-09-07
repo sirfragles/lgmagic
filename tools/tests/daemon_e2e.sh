@@ -184,6 +184,34 @@ expect_emit()
 	echo "OK $label"
 }
 
+# expect_no_emit: like expect_emit, but the pattern must NOT appear
+# (e.g. the parked-POI drift regression: constant input, no movement).
+expect_no_emit()
+{
+	label=$1; out=$2; shift 2
+
+	emit_args=
+	while [ $# -gt 2 ]; do
+		emit_args="$emit_args $1"
+		shift
+	done
+	expect=$1; ms=$2
+
+	f=$TMP/exp.$n_exp.out
+	n_exp=$((n_exp + 1))
+	last_exp_file=$f
+	( "$FAKE" watch "$out" --ms "$ms" > "$f" 2>&1 ) &
+	wp=$!
+	sleep 0.1
+	eval "\"$FAKE\" emit$emit_args"
+	sleep $((ms / 1000 + 1))
+	kill "$wp" 2>/dev/null || true
+	wait "$wp" 2>/dev/null || true
+	grep -q "$expect" "$f" && \
+		fail "$label: expected no '$expect', got: $(cat "$f")"
+	echo "OK $label"
+}
+
 # ------------------------------------------------------------------ #
 # Throwaway system bus + polkitd + policy                            #
 # ------------------------------------------------------------------ #
@@ -404,15 +432,16 @@ echo "OK held key across remap"
 expect_emit "scroll 2.0" "$OUTM" --kbd "$KBD" --wheel 2 "REL_WHEEL 4$" 1200
 
 # sensitivity 60: dx = int(0.349066 * 60) = 20
+# (delta engine: the first frame is the baseline, the +100 step on z moves)
 "$BIN" scroll sensitivity unknown 60.0 || fail "scroll sensitivity"
-expect_emit "sensitivity 60" "$OUTM" --imu "$IMU" --gyro 0,0,100 \
-	"REL_X 20$" 1500
+expect_emit "sensitivity 60" "$OUTM" --imu "$IMU" \
+	--gyro 0,0,0 --gyro 0,0,100 "REL_X 20$" 1500
 
 "$BIN" scroll reset unknown || fail "scroll reset"
 expect_emit "scroll reset" "$OUTM" --kbd "$KBD" --wheel 2 "REL_WHEEL 2$" 1200
 # sensitivity back to 30: dx = int(0.349066 * 30) = 10
-expect_emit "sensitivity reset" "$OUTM" --imu "$IMU" --gyro 0,0,100 \
-	"REL_X 10$" 1500
+expect_emit "sensitivity reset" "$OUTM" --imu "$IMU" \
+	--gyro 0,0,0 --gyro 0,0,100 "REL_X 10$" 1500
 
 # ------------------------------------------------------------------ #
 # 6. button reset: the default map is gone, KEY_UP passes through    #
@@ -448,8 +477,8 @@ dbus-send --system --print-reply --dest=org.lgmagic /org/lgmagic/Manager \
 grep -q "calibration reload for unknown" "$TMP/daemon.log" || \
 	fail "bad calib: no rejection logged: $(tail -5 "$TMP/daemon.log")"
 [ "$("$BIN" device list)" = "unknown" ] || fail "bad calib: daemon not alive"
-expect_emit "bad calib rejected" "$OUTM" --imu "$IMU" --gyro 0,0,100 \
-	"REL_X 10$" 1500
+expect_emit "bad calib rejected" "$OUTM" --imu "$IMU" \
+	--gyro 0,0,0 --gyro 0,0,100 "REL_X 10$" 1500
 
 # ------------------------------------------------------------------ #
 # 7. SetCalibPath + Reload: a new calibration applies live           #
@@ -476,8 +505,21 @@ grep -q "calib = \"$CAL2\"" "$CFG/devices.d/unknown.toml" || \
 dbus-send --system --print-reply --dest=org.lgmagic /org/lgmagic/Manager \
 	org.lgmagic.Manager.Reload >/dev/null || fail "Reload via dbus-send"
 
-expect_emit "new calibration" "$OUTM" --imu "$IMU" --gyro 0,0,100 \
-	"REL_X 5$" 1500
+expect_emit "new calibration" "$OUTM" --imu "$IMU" \
+	--gyro 0,0,0 --gyro 0,0,100 "REL_X 5$" 1500
+
+# ------------------------------------------------------------------ #
+# 7b. Parked POI: a constant nonzero gyro across frames must not move #
+#     the mouse (the drift bug: after handling, the remote parks its  #
+#     pointer output at hundreds of counts for tens of seconds - a    #
+#     static bias can never neutralise that, the delta engine can)    #
+# ------------------------------------------------------------------ #
+
+# reload resets the engine: the next frame is the baseline
+dbus-send --system --print-reply --dest=org.lgmagic /org/lgmagic/Manager \
+	org.lgmagic.Manager.Reload >/dev/null || fail "Reload(parked) via dbus-send"
+expect_no_emit "parked gyro" "$OUTM" --imu "$IMU" \
+	--gyro 5,483,1954 --gyro 5,483,1954 "REL_[XY]" 1000
 
 # ------------------------------------------------------------------ #
 # 8. Standalone `lgmagic imu` in parallel (IMU not grabbed)         #
