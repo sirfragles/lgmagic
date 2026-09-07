@@ -74,6 +74,10 @@ The original Python scripts remain in `scripts/` for reference only.
 
 - Full button decode (power, digits, navigation, media, color buttons)
   via a static key map — mode-independent, identical to v1
+- Kernel autorepeat for held keys (`EV_REP`)
+- HID code `0x8000` is model-dependent: `KEY_POWER` on the MR20; on the
+  AN-MR19BA it is the channel-up key (its power key is IR-only and sends
+  no BLE event) — select with the `key_0x8000` module parameter
 - `raw_only=1` (default): the wheel reports **only** `REL_WHEEL` and no
   key emulation, and no airmouse is generated in the kernel
 - `raw_only=0`: the complete v1 behaviour (kernel-space airmouse with
