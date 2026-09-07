@@ -67,8 +67,15 @@
  * it: state_dir holds STATE_DIR + "/" + MAC + NUL (35), calib_path adds
  * "/calibration.json" (another 17) - 128 covers both with room. */
 #define STATE_PATH_MAX 128
-#define ACCEL_SECONDS 20.0
-#define GYRO_SECONDS 10.0
+/* Calibration recording windows.  The first real-hardware field test
+ * (MR21N over HoG) showed the old values (20 s accel / 10 s gyro) were
+ * too tight: six accel orientations need ~10 s each, and a gyro bias
+ * polluted by the hand settling the remote leaves a constant residual -
+ * the cursor crawls at rest.  The gyro skip drops the settling motion
+ * before the mean. */
+#define ACCEL_SECONDS 60.0
+#define GYRO_SECONDS 30.0
+#define GYRO_SKIP_SECONDS 3.0
 #define MOUSE_TEST_SECONDS 8.0
 #define LM_G 9.80665
 
@@ -427,8 +434,11 @@ static int step_accel_calib(struct evdev_imu *dev, struct calib *c,
 		double (*a)[3];
 		double cost, rms, spread;
 		long n, i;
+		char prompt[64];
 
-		ask_yn("Start the 20 s recording", 1);
+		snprintf(prompt, sizeof(prompt),
+			 "Start the %.0f s recording", ACCEL_SECONDS);
+		ask_yn(prompt, 1);
 		n = record_samples(dev, ACCEL_SECONDS, &s, err, sizeof(err));
 		if (n < 0)
 			return -1;
@@ -478,55 +488,93 @@ static int step_accel_calib(struct evdev_imu *dev, struct calib *c,
 static int step_gyro_calib(struct evdev_imu *dev, struct calib *c,
 			   const char *rec_dir)
 {
-	struct imu_sample *s = NULL;
 	char csv_path[STATE_PATH_MAX + 32];
+	char prompt[64];
 	char err[256];
-	double std[3];
-	long n, i;
-	int j;
+	int attempt;
 
 	snprintf(csv_path, sizeof(csv_path), "%s/calib_gyro.csv", rec_dir);
 	printf("\n=== Step 5: gyroscope calibration ===\n");
-	printf("Lay the remote down on a flat surface and do not touch it.\n");
-	ask_yn("Start the 10 s recording", 1);
-	n = record_samples(dev, GYRO_SECONDS, &s, err, sizeof(err));
-	if (n < 0)
-		return -1;
-	if (g_stop) {
-		free(s);
-		fprintf(stderr, "Interrupted.\n");
-		return -1;
-	}
-	if (n == 0) {
-		fprintf(stderr, "lgmagic: no samples recorded\n");
-		free(s);
-		return -1;
-	}
-	if (csv_write(csv_path, s, (size_t)n, err, sizeof(err)) == 0)
-		printf("Saved the recording to %s\n", csv_path);
-	for (j = 0; j < 3; j++) {
-		c->gyro_bias[j] = 0.0;
-		for (i = 0; i < n; i++)
-			c->gyro_bias[j] += s[i].gyro[j];
-		c->gyro_bias[j] /= (double)n;
-		std[j] = 0.0;
-		for (i = 0; i < n; i++)
-			std[j] += (s[i].gyro[j] - c->gyro_bias[j]) *
-				  (s[i].gyro[j] - c->gyro_bias[j]);
-		std[j] = sqrt(std[j] / (double)n);
-	}
-	free(s);
-	printf("gyro bias: [%.6g %.6g %.6g]\n", c->gyro_bias[0],
-	       c->gyro_bias[1], c->gyro_bias[2]);
-	printf("gyro noise (std): [%.3g %.3g %.3g]\n", std[0], std[1],
-	       std[2]);
-	for (j = 0; j < 3; j++)
-		if (std[j] > GYRO_STD_WARN) {
-			fprintf(stderr, "Warning: the gyro values were moving "
-				"during the recording - repeat it if the "
-				"airmouse drifts.\n");
-			break;
+	printf("Lay the remote down on a flat surface and do not touch it,\n"
+	       "then start the recording and keep it still.\n");
+	snprintf(prompt, sizeof(prompt),
+		 "Start the %.0f s recording", GYRO_SECONDS);
+	for (attempt = 1; attempt <= 3; attempt++) {
+		struct imu_sample *s = NULL;
+		double std[3], skip_s = 0.0;
+		long n, i, first;
+		int j, warn = 0;
+
+		ask_yn(prompt, 1);
+		n = record_samples(dev, GYRO_SECONDS, &s, err, sizeof(err));
+		if (n < 0)
+			return -1;
+		if (g_stop) {
+			free(s);
+			fprintf(stderr, "Interrupted.\n");
+			return -1;
 		}
+		if (n == 0) {
+			fprintf(stderr, "lgmagic: no samples recorded\n");
+			free(s);
+			return -1;
+		}
+		if (csv_write(csv_path, s, (size_t)n, err, sizeof(err)) == 0)
+			printf("Saved the recording to %s\n", csv_path);
+		/* Skip the first GYRO_SKIP_SECONDS before the mean: the hand
+		 * is still settling the remote right after the recording
+		 * starts, and that motion biases the mean (a residual bias
+		 * makes the cursor crawl at rest).  The IMU counter runs at
+		 * 256 counts per 0.02 s and wraps at 65536 every 5.12 s
+		 * (see evdev.c), so the time is accumulated from per-pair
+		 * deltas, which never wrap between consecutive samples. */
+		{
+			const double skip = GYRO_SKIP_SECONDS * 12800.0;
+			long prev = (long)s[0].counter;
+
+			for (first = 0; first < n; first++) {
+				skip_s += (double)((s[first].counter -
+						    (unsigned)prev) & 0xffff);
+				prev = (long)s[first].counter;
+				if (skip_s >= skip)
+					break;
+			}
+		}
+		if (first >= n)
+			first = 0;	/* shorter than the skip: keep all */
+		for (j = 0; j < 3; j++) {
+			c->gyro_bias[j] = 0.0;
+			for (i = first; i < n; i++)
+				c->gyro_bias[j] += s[i].gyro[j];
+			c->gyro_bias[j] /= (double)(n - first);
+			std[j] = 0.0;
+			for (i = first; i < n; i++)
+				std[j] += (s[i].gyro[j] - c->gyro_bias[j]) *
+					  (s[i].gyro[j] - c->gyro_bias[j]);
+			std[j] = sqrt(std[j] / (double)(n - first));
+		}
+		printf("gyro bias: [%.6g %.6g %.6g]",
+		       c->gyro_bias[0], c->gyro_bias[1], c->gyro_bias[2]);
+		if (first > 0)
+			printf(" (first %.1f s skipped)", skip_s / 12800.0);
+		printf("\n");
+		printf("gyro noise (std): [%.3g %.3g %.3g]\n", std[0], std[1],
+		       std[2]);
+		for (j = 0; j < 3; j++)
+			if (std[j] > GYRO_STD_WARN) {
+				warn = 1;
+				fprintf(stderr, "Warning: the gyro values "
+					"were moving during the recording.\n");
+				break;
+			}
+		free(s);
+		if (!warn)
+			return 0;
+		if (stdin_closed || !ask_yn("Record again", 1))
+			break;
+	}
+	fprintf(stderr, "Warning: accepting a noisy gyroscope calibration; "
+		"re-run 'sudo lgmagic setup' to retry.\n");
 	return 0;
 }
 
