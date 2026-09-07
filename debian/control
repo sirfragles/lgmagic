@@ -1,7 +1,7 @@
 Source: lgmagic
 Section: kernel
 Priority: optional
-Maintainer: Ilya Chelyadin <sirfragles@users.noreply.github.com>
+Maintainer: sirfragles <sirfragles@users.noreply.github.com>
 Build-Depends: debhelper-compat (= 13), gcc, make, libsystemd-dev,
  pkg-config
 Standards-Version: 4.6.2

@@ -89,6 +89,6 @@ fi
 %{_prefix}/src/lgmagic-%{version}/dkms.conf
 
 %changelog
-* Mon Sep 07 2026 Ilya Chelyadin <sirfragles@users.noreply.github.com> - 0.0.1-1
+* Mon Sep 07 2026 sirfragles <sirfragles@users.noreply.github.com> - 0.0.1-1
 - Fresh start: renamed to lgmagic; version line restarts at 0.0.1;
 - VERSION repository variable is the single source of truth.
