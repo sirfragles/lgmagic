@@ -490,6 +490,6 @@ GPL-2.0-or-later — как у ядра Linux. Порт алгоритма Madgw
 `tools/src/madgwick.c` основан на реализации в общественном достоянии
 С. Маджвика (x-io.co.uk).
 
-Copyright © 2025 Ilya Chelyadin, 2026 sirfragles. Основан на lg-magic
-Ильи Челядина (https://github.com/brainrom/lg-magic). Проект не связан
-с LG Electronics.
+Copyright © 2025 Ilya Chelyadin, 2026 sirfragles. Проект основан на
+lg-magic (https://github.com/brainrom/lg-magic) Ильи Челядина и не
+связан с LG Electronics.

@@ -2,11 +2,10 @@ Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
 Upstream-Name: lgmagic
 Upstream-Contact: sirfragles <https://github.com/sirfragles/lgmagic>
 Source: https://github.com/sirfragles/lgmagic
-Comment: This project is based on lg-magic by Ilya Chelyadin
- (https://github.com/brainrom/lg-magic). The kernel driver, the Python
- scripts and the image listed below are the original work; the userspace
- daemon, CLI, configuration, tests and packaging were written in this
- repository.
+Comment: This project is based on lg-magic (https://github.com/brainrom/lg-magic)
+ by Ilya Chelyadin. The kernel driver, the Python scripts and the
+ image listed below are the original work; the userspace daemon, CLI,
+ configuration, tests and packaging were written in this repository.
 
 Files: *
 Copyright: 2026 sirfragles
@@ -33,9 +32,8 @@ Files: scripts/calibrate.py scripts/convert_calib.py scripts/display_imu.py
  images/lgmagic_remote.png
 Copyright: 2025 Ilya Chelyadin
 License: GPL-2+
-Comment: Taken verbatim from the original lg-magic project
- (https://github.com/brainrom/lg-magic); scripts/lgmagic.py is the
- renamed scripts/lg_magic.py.
+Comment: Taken verbatim from lg-magic (https://github.com/brainrom/lg-magic);
+ scripts/lgmagic.py is the original script under its new name.
 
 Files: tools/src/madgwick.c
 Copyright: 2026 sirfragles

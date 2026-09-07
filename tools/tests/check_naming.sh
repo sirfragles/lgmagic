@@ -6,9 +6,15 @@
 # The project renamed its binary/daemon/module/macros to the prefix
 # "lgmagic" (no separator).  This guard scans the whole repo tree for
 # the three pre-rename token spellings (dash, underscore, and their
-# uppercase form) with ZERO tolerance - there is no allowlist, so the
+# uppercase form) with zero tolerance - there is no allowlist, so the
 # scan covers packaging, docs and scripts alike.  The old package names
 # may only live in the GitHub Release notes, never in a tracked file.
+#
+# ONE sanctioned exception: attribution of the upstream project this
+# code is based on (the canonical URL github.com/brainrom/<old name>,
+# composed at runtime below).  A hit line that also carries that URL is
+# attribution, not a stale reference, and passes.  Anything else still
+# fails, URL or not.
 #
 #   - content: every file under the repo root (excluding .git/,
 #     testdata/ and receipts/) is grepped for the tokens;
@@ -32,6 +38,10 @@ D=$(printf '%s-%s' lg magic)
 U=$(printf '%s_%s' lg magic)
 BIG=$(printf '%s' "$U" | tr '[:lower:]' '[:upper:]')
 PAT=$(printf '%s|%s|%s' "$D" "$U" "$BIG")
+# The upstream project's canonical URL: the one place the old spelling
+# may legitimately appear (attribution), composed so this file cannot
+# match itself.
+UPSTR=$(printf '%s' "github.com/brainrom/$D")
 
 [ -d "$ROOT" ] || { echo "FAIL tests/check_naming: repo root $ROOT missing"; exit 1; }
 
@@ -44,7 +54,10 @@ out=$(find "$ROOT" \
 	\( -path "$ROOT/.git" -o -path "$ROOT/testdata" \
 	   -o -path "$ROOT/receipts" \) -prune -o -type f -print 2>/dev/null | \
 	while IFS= read -r f; do
-		grep -HInE "$PAT" "$f" 2>/dev/null
+		# Drop hit lines that also carry the upstream URL - they are
+		# attribution of the project this code is based on (see the
+		# header comment), not stale references to our own old names.
+		grep -HInE "$PAT" "$f" 2>/dev/null | grep -vF "$UPSTR"
 	done) || true
 if [ -n "$out" ]; then
 	printf '%s\n' "$out"

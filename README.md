@@ -474,6 +474,6 @@ GPL-2.0-or-later — same as the Linux kernel. The Madgwick AHRS algorithm
 port in `tools/src/madgwick.c` is based on the public-domain implementation
 by S. Madgwick (x-io.co.uk).
 
-Copyright © 2025 Ilya Chelyadin, 2026 sirfragles. Based on lg-magic by
-Ilya Chelyadin (https://github.com/brainrom/lg-magic). This project is
-not affiliated with LG Electronics.
+Copyright © 2025 Ilya Chelyadin, 2026 sirfragles. This project is based
+on lg-magic (https://github.com/brainrom/lg-magic) by Ilya Chelyadin,
+and is not affiliated with LG Electronics.
