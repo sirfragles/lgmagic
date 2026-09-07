@@ -2,16 +2,47 @@ Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
 Upstream-Name: lgmagic
 Upstream-Contact: sirfragles <https://github.com/sirfragles/lgmagic>
 Source: https://github.com/sirfragles/lgmagic
+Comment: This project is based on lg-magic by Ilya Chelyadin
+ (https://github.com/brainrom/lg-magic). The kernel driver, the Python
+ scripts and the image listed below are the original work; the userspace
+ daemon, CLI, configuration, tests and packaging were written in this
+ repository.
 
 Files: *
-Copyright: 2025 Ilya Chelyadin
+Copyright: 2026 sirfragles
 License: GPL-2+
 
-Files: tools/src/madgwick.c
+Files: COPYING
+Copyright: 1989, 1991 Free Software Foundation, Inc.
+License: GPL-2+
+Comment: The text of the GNU General Public License version 2.
+
+Files: kernel/* dkms.conf include/lgmagic_calib.h 51-lgimu.rules
+ README.md README.ru.md
 Copyright: 2025 Ilya Chelyadin
+           2026 sirfragles
+License: GPL-2+
+Comment: Based on the original kernel driver, headers, udev rule and
+ documentation from lg-magic (https://github.com/brainrom/lg-magic);
+ reworked in this repository (rename, raw-only decode mode, wheel
+ handling, FPU guards, distro-kernel portability, VID/PID restriction
+ on the udev rule).
+
+Files: scripts/calibrate.py scripts/convert_calib.py scripts/display_imu.py
+ scripts/draw_cube.py scripts/lgmagic.py scripts/uinput_mouse.py
+ images/lgmagic_remote.png
+Copyright: 2025 Ilya Chelyadin
+License: GPL-2+
+Comment: Taken verbatim from the original lg-magic project
+ (https://github.com/brainrom/lg-magic); scripts/lgmagic.py is the
+ renamed scripts/lg_magic.py.
+
+Files: tools/src/madgwick.c
+Copyright: 2026 sirfragles
 Comment: The Madgwick AHRS algorithm is S.O.H. Madgwick's open publication
- (http://x-io.co.uk/open-source-imu-and-ahrs-algorithms/); this C port is
- distributed under the project's GPL-2+ license.
+ (http://x-io.co.uk/open-source-imu-and-ahrs-algorithms/); the algorithm
+ itself is public domain. This C port was written for this project and
+ is distributed under the project's GPL-2+ license.
 License: GPL-2+
 
 License: GPL-2+
