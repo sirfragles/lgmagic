@@ -59,6 +59,9 @@ static void test_defaults(void)
 	     cfg->madgwick_beta == 0.1 && cfg->alpha == 0.2 &&
 	     cfg->mouse_k == 0.5 && cfg->gyro_scale_default == 0.07;
 	CHECK(ok == 1, "numeric defaults are 0.2/30.0/0.1/0.2/0.5/0.07");
+	CHECK(cfg->accel_gate == 1 && cfg->accel_gate_lo == 60.0 &&
+	      cfg->accel_gate_hi == 400.0,
+	      "gate defaults are on/60.0/400.0");
 	CHECK(cfg->imu_device == NULL && cfg->hidraw_device == NULL &&
 	      cfg->default_calib == NULL,
 	      "device paths default to NULL (auto-detect)");
@@ -91,6 +94,19 @@ static void test_set_key(void)
 			     err, sizeof(err)) == 0 &&
 	      cfg->gyro_scale_default == 0.09,
 	      "numeric key with a decimal exponent-free value is set");
+	CHECK(config_set_key(cfg, "accel_gate", "false",
+			     err, sizeof(err)) == 0 && cfg->accel_gate == 0,
+	      "bool key accepts \"false\"");
+	CHECK(config_set_key(cfg, "accel_gate", "1",
+			     err, sizeof(err)) == 0 && cfg->accel_gate == 1,
+	      "bool key accepts \"1\"");
+	CHECK(config_set_key(cfg, "accel_gate", "banana",
+			     err, sizeof(err)) == -1,
+	      "non-boolean value for a bool key returns -1");
+	CHECK(config_set_key(cfg, "accel_gate_lo", "80.0",
+			     err, sizeof(err)) == 0 &&
+	      cfg->accel_gate_lo == 80.0,
+	      "gate threshold key is set like any numeric key");
 	CHECK(config_set_key(cfg, "no_such_key", "1", err, sizeof(err)) == -1 &&
 	      err[0] != '\0',
 	      "unknown key returns -1 with an error message");
@@ -120,7 +136,9 @@ static void test_save_load_user(void)
 	CHECK(config_set_key(cfg, "lpf_alpha", "0.35", err, sizeof(err)) == 0 &&
 	      config_set_key(cfg, "imu_device", "/dev/input/event9",
 			     err, sizeof(err)) == 0 &&
-	      config_set_key(cfg, "mouse_k", "0.75", err, sizeof(err)) == 0,
+	      config_set_key(cfg, "mouse_k", "0.75", err, sizeof(err)) == 0 &&
+	      config_set_key(cfg, "accel_gate", "false",
+			     err, sizeof(err)) == 0,
 	      "preparing a modified config for saving");
 
 	CHECK(config_save_user(cfg, err, sizeof(err)) == 0,
@@ -144,6 +162,9 @@ static void test_save_load_user(void)
 		v = toml_table_get_short(root, "mouse_scale");
 		CHECK(v && v->type == TOML_FLOAT && v->d == 30.0,
 		      "default numeric keys are saved too");
+		v = toml_table_get_short(root, "accel_gate");
+		CHECK(v && v->type == TOML_BOOL && v->b == 0,
+		      "saved accel_gate is a TOML bool");
 		toml_free(root);
 	}
 
@@ -156,6 +177,9 @@ static void test_save_load_user(void)
 		      cfg2->mouse_k == 0.75 &&
 		      strcmp(cfg2->imu_device, "/dev/input/event9") == 0,
 		      "fresh load applies the saved user config");
+		CHECK(cfg2->accel_gate == 0 &&
+		      config_is_explicit("accel_gate") != 0,
+		      "the saved bool comes back false and explicit");
 		CHECK(config_is_explicit("lpf_alpha") != 0 &&
 		      config_is_explicit("mouse_k") != 0,
 		      "keys read from the user file are marked explicit");

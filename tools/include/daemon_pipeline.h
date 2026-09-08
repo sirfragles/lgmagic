@@ -16,6 +16,7 @@
 
 #include "airmouse.h"
 #include "calib.h"
+#include "config.h"
 #include "evdev.h"
 #include "profiles.h"
 
@@ -26,6 +27,7 @@ struct pipeline {
 	int have_cal;		/* a calibration JSON was loaded */
 	int airmouse_on;
 	struct airmouse am;
+	int gate_logged;	/* mirror of am.gate_open for transition logs */
 	/* Keys currently held down on the physical remote: the virtual
 	 * code they were pressed AS.  A map change must release these
 	 * (otherwise the old virtual key stays stuck), and a release
@@ -44,12 +46,14 @@ void pipeline_free(struct pipeline *p);
 /* (Re)apply the resolved configuration: pick the active profile
  * (dc->profile, falling back to "default" and then the built-in
  * defaults), reload the calibration from calib_path ("" = none), set
- * the airmouse on/off.  A broken calibration file is an error (err set)
- * but the pipeline stays usable without it.  Held keys are released on
+ * the airmouse on/off, and re-arm the airmouse engine (LPF gain from
+ * the profile or the global config, spring-back gate from the global
+ * config).  A broken calibration file is an error (err set) but the
+ * pipeline stays usable without it.  Held keys are released on
  * kbd_uinput first (a remap must not leave the old virtual key stuck).
  * Returns 0 / -1. */
 int pipeline_configure(struct pipeline *p, const struct device_config *dc,
-		       const char *calib_path, double global_lpf,
+		       const char *calib_path, const struct config *gcfg,
 		       int kbd_uinput, char *err, size_t errsz);
 
 /* One keyboard frame: map + emit keys on kbd_fd, accumulate the wheel

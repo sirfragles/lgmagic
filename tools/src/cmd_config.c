@@ -7,9 +7,10 @@
  *   lgmagic config path              print the config file paths
  *   lgmagic config migrate [FILE]    convert a v1 config.json to TOML
  *
- * Keys: imu_device, hidraw_device, default_calib (strings) and
- * lpf_alpha, mouse_scale, madgwick_beta, alpha, mouse_k,
- * gyro_scale_default (numbers).
+ * Keys: imu_device, hidraw_device, default_calib (strings),
+ * accel_gate (bool: true/false) and lpf_alpha, mouse_scale,
+ * madgwick_beta, alpha, mouse_k, gyro_scale_default, accel_gate_lo,
+ * accel_gate_hi (numbers).
  */
 #include "config.h"
 
@@ -34,8 +35,10 @@ static void usage(FILE *out)
 	      "                   (the JSON source is kept)\n"
 	      "\n"
 	      "Keys (strings): imu_device, hidraw_device, default_calib\n"
+	      "Keys (bool):    accel_gate (true/false)\n"
 	      "Keys (numbers): lpf_alpha, mouse_scale, madgwick_beta,\n"
-	      "                alpha, mouse_k, gyro_scale_default\n", out);
+	      "                alpha, mouse_k, gyro_scale_default,\n"
+	      "                accel_gate_lo, accel_gate_hi\n", out);
 }
 
 /* ------------------------------------------------------------------ */

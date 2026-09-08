@@ -131,6 +131,7 @@ mkdir -p "$CFG/devices.d" "$STATE/unknown"
 cat > "$CFG/config.toml" <<'EOF'
 lpf_alpha = 0.2
 mouse_scale = 30.0
+accel_gate = true
 EOF
 
 # Gyro scale [1,1,1] - the airmouse assertion below computes with
@@ -377,6 +378,52 @@ sleep 0.2
 sleep 1.0
 [ -s "$TMP/w6b.out" ] && fail "parked gyro: unexpected movement: $(cat "$TMP/w6b.out")"
 echo "OK parked gyro"
+
+# ------------------------------------------------------------------ #
+# 6c. Spring-back gate: motion with a live accelerometer moves the    #
+#     mouse; the POI returning towards its rest point with the accel  #
+#     at rest (the spring-back after a wave) must move nothing.       #
+# ------------------------------------------------------------------ #
+
+# 6b left the engine with the baseline at the parked POI (5,483,1954)
+# and the gate never armed (no accel was ever sent).  Frame A arms it:
+# gravity (0,0,4007) with the same parked POI - delta zero, no motion.
+( "$FAKE" watch "$OUTM" --ms 1500 > "$TMP/w6c1.out" 2>&1 ) &
+sleep 0.1
+"$FAKE" emit --imu "$IMU2" --accel 0,0,4007 --gyro 5,483,1954
+sleep 0.2
+# The wave: the accel deviates (dev 600 > gate_hi 400) and the POI
+# steps twice - the open gate must pass the movement.
+"$FAKE" emit --imu "$IMU2" --accel 0,600,4200 --gyro 0,100,2100
+sleep 0.2
+"$FAKE" emit --imu "$IMU2" --accel 0,600,4200 --gyro 0,100,2200
+sleep 1.3
+grep -q "REL_X" "$TMP/w6c1.out" || \
+	fail "spring-back: wave produced no movement: $(cat "$TMP/w6c1.out")"
+echo "OK spring-back wave"
+
+# Drain: a constant POI with the accel at rest.  The latch runs out
+# after 10 frames, the gate closes, and the filter tail decays below
+# the (int) truncation (the engine is frame-driven, so 40 frames are
+# deterministic: 43.36 * 0.8^40 * 30 < 1).
+i=0
+while [ $i -lt 40 ]; do
+	"$FAKE" emit --imu "$IMU2" --accel 0,0,4007 --gyro 0,100,2200
+	i=$((i + 1))
+	sleep 0.05
+done
+
+# The spring itself: the POI returns to the parked value with the
+# accel at rest.  The closed gate absorbs every delta - zero events.
+( "$FAKE" watch "$OUTM" --ms 800 > "$TMP/w6c2.out" 2>&1 ) &
+sleep 0.1
+"$FAKE" emit --imu "$IMU2" --accel 0,0,4007 --gyro 5,483,1954
+sleep 0.2
+"$FAKE" emit --imu "$IMU2" --accel 0,0,4007 --gyro 5,483,1954
+sleep 1.0
+[ -s "$TMP/w6c2.out" ] && \
+	fail "spring-back: gate leaked the spring: $(cat "$TMP/w6c2.out")"
+echo "OK spring-back gate"
 
 # ------------------------------------------------------------------ #
 # 7. Grab: raw events hidden while the daemon lives, visible after    #

@@ -50,6 +50,9 @@ enum {
 	X_ALPHA = 1 << 6,
 	X_MOUSE_K = 1 << 7,
 	X_GYRO_SCALE = 1 << 8,
+	X_ACCEL_GATE = 1 << 9,
+	X_ACCEL_GATE_LO = 1 << 10,
+	X_ACCEL_GATE_HI = 1 << 11,
 };
 
 static unsigned explicit_mask;
@@ -78,6 +81,12 @@ static int key_bit(const char *key)
 		return X_MOUSE_K;
 	if (strcmp(key, "gyro_scale_default") == 0)
 		return X_GYRO_SCALE;
+	if (strcmp(key, "accel_gate") == 0)
+		return X_ACCEL_GATE;
+	if (strcmp(key, "accel_gate_lo") == 0)
+		return X_ACCEL_GATE_LO;
+	if (strcmp(key, "accel_gate_hi") == 0)
+		return X_ACCEL_GATE_HI;
 	return 0;
 }
 
@@ -145,6 +154,23 @@ static void set_from_value(struct config *cfg, const char *key,
 		cfg->gyro_scale_default = v->type == TOML_FLOAT ?
 			v->d : (double)v->i;
 		break;
+	case X_ACCEL_GATE:
+		if (v->type != TOML_BOOL && v->type != TOML_INT)
+			return;
+		cfg->accel_gate = v->type == TOML_BOOL ? v->b : (v->i != 0);
+		break;
+	case X_ACCEL_GATE_LO:
+		if (v->type != TOML_FLOAT && v->type != TOML_INT)
+			return;
+		cfg->accel_gate_lo = v->type == TOML_FLOAT ?
+			v->d : (double)v->i;
+		break;
+	case X_ACCEL_GATE_HI:
+		if (v->type != TOML_FLOAT && v->type != TOML_INT)
+			return;
+		cfg->accel_gate_hi = v->type == TOML_FLOAT ?
+			v->d : (double)v->i;
+		break;
 	}
 	explicit_mask |= (unsigned)bit;
 }
@@ -177,6 +203,7 @@ static void merge_file(struct config *cfg, const char *path)
 		"imu_device", "hidraw_device", "default_calib",
 		"lpf_alpha", "mouse_scale", "madgwick_beta",
 		"alpha", "mouse_k", "gyro_scale_default",
+		"accel_gate", "accel_gate_lo", "accel_gate_hi",
 	};
 	size_t i;
 	struct stat st;
@@ -215,6 +242,9 @@ static void set_defaults(struct config *cfg)
 	cfg->alpha = 0.2;
 	cfg->mouse_k = 0.5;
 	cfg->gyro_scale_default = 0.07;
+	cfg->accel_gate = 1;
+	cfg->accel_gate_lo = 60.0;
+	cfg->accel_gate_hi = 400.0;
 }
 
 struct config *config_load(const char *extra_path)
@@ -316,30 +346,38 @@ int config_save_user(struct config *cfg, char *err, size_t errsz)
 		goto oom;
 	{
 		/* fixed key order, string keys first then numbers */
+		enum { KV_FLOAT = 0, KV_STR = 1, KV_BOOL = 2 };
 		struct {
 			const char *key;
-			int is_str;
+			int kind;
 			const void *val;
 		} kvs[] = {
-			{ "imu_device", 1, cfg->imu_device },
-			{ "hidraw_device", 1, cfg->hidraw_device },
-			{ "default_calib", 1, cfg->default_calib },
-			{ "lpf_alpha", 0, &cfg->lpf_alpha },
-			{ "mouse_scale", 0, &cfg->mouse_scale },
-			{ "madgwick_beta", 0, &cfg->madgwick_beta },
-			{ "alpha", 0, &cfg->alpha },
-			{ "mouse_k", 0, &cfg->mouse_k },
-			{ "gyro_scale_default", 0, &cfg->gyro_scale_default },
+			{ "imu_device", KV_STR, cfg->imu_device },
+			{ "hidraw_device", KV_STR, cfg->hidraw_device },
+			{ "default_calib", KV_STR, cfg->default_calib },
+			{ "lpf_alpha", KV_FLOAT, &cfg->lpf_alpha },
+			{ "mouse_scale", KV_FLOAT, &cfg->mouse_scale },
+			{ "madgwick_beta", KV_FLOAT, &cfg->madgwick_beta },
+			{ "alpha", KV_FLOAT, &cfg->alpha },
+			{ "mouse_k", KV_FLOAT, &cfg->mouse_k },
+			{ "gyro_scale_default", KV_FLOAT, &cfg->gyro_scale_default },
+			{ "accel_gate", KV_BOOL, &cfg->accel_gate },
+			{ "accel_gate_lo", KV_FLOAT, &cfg->accel_gate_lo },
+			{ "accel_gate_hi", KV_FLOAT, &cfg->accel_gate_hi },
 		};
 		size_t i;
 
 		for (i = 0; i < sizeof(kvs) / sizeof(kvs[0]); i++) {
 			struct toml_value *v;
 
-			if (kvs[i].is_str) {
+			if (kvs[i].kind == KV_STR) {
 				const char *s = kvs[i].val;
 
 				v = toml_new_str(s ? s : "");
+				if (!v)
+					goto oom_free_root;
+			} else if (kvs[i].kind == KV_BOOL) {
+				v = toml_new_bool(*(const int *)kvs[i].val != 0);
 				if (!v)
 					goto oom_free_root;
 			} else {
@@ -422,6 +460,8 @@ int config_set_key(struct config *cfg, const char *key, const char *value,
 	case X_ALPHA:
 	case X_MOUSE_K:
 	case X_GYRO_SCALE:
+	case X_ACCEL_GATE_LO:
+	case X_ACCEL_GATE_HI:
 		errno = 0;
 		d = strtod(value, &end);
 		if (errno != 0 || end == value || *end != '\0') {
@@ -435,7 +475,21 @@ int config_set_key(struct config *cfg, const char *key, const char *value,
 		case X_MADGWICK_BETA: cfg->madgwick_beta = d; break;
 		case X_ALPHA: cfg->alpha = d; break;
 		case X_MOUSE_K: cfg->mouse_k = d; break;
+		case X_ACCEL_GATE_LO: cfg->accel_gate_lo = d; break;
+		case X_ACCEL_GATE_HI: cfg->accel_gate_hi = d; break;
 		default: cfg->gyro_scale_default = d; break;
+		}
+		break;
+	case X_ACCEL_GATE:
+		if (strcmp(value, "true") == 0 || strcmp(value, "1") == 0) {
+			cfg->accel_gate = 1;
+		} else if (strcmp(value, "false") == 0 ||
+			   strcmp(value, "0") == 0) {
+			cfg->accel_gate = 0;
+		} else {
+			snprintf(err, errsz, "invalid value for %s: '%s' "
+				 "(true/false)", key, value);
+			return -1;
 		}
 		break;
 	default:
@@ -473,6 +527,12 @@ static void print_str(const char *key, const char *v)
 	       config_is_explicit(key) ? " (from config)" : " (default)");
 }
 
+static void print_bool(const char *key, int v)
+{
+	printf("%-20s = %s%s\n", key, v ? "true" : "false",
+	       config_is_explicit(key) ? " (from config)" : " (default)");
+}
+
 void config_print(const struct config *cfg)
 {
 	print_str("imu_device", cfg->imu_device);
@@ -484,6 +544,9 @@ void config_print(const struct config *cfg)
 	print_num("alpha", cfg->alpha);
 	print_num("mouse_k", cfg->mouse_k);
 	print_num("gyro_scale_default", cfg->gyro_scale_default);
+	print_bool("accel_gate", cfg->accel_gate);
+	print_num("accel_gate_lo", cfg->accel_gate_lo);
+	print_num("accel_gate_hi", cfg->accel_gate_hi);
 }
 
 void config_print_paths(void)

@@ -14,6 +14,7 @@
 void pipeline_init(struct pipeline *p)
 {
 	memset(p, 0, sizeof(*p));
+	p->gate_logged = -1;
 	calib_init_identity(&p->cal);
 	profile_init(&p->active, "resolved");
 }
@@ -24,7 +25,7 @@ void pipeline_free(struct pipeline *p)
 }
 
 int pipeline_configure(struct pipeline *p, const struct device_config *dc,
-		       const char *calib_path, double global_lpf,
+		       const char *calib_path, const struct config *gcfg,
 		       int kbd_uinput, char *err, size_t errsz)
 {
 	const struct profile *src;
@@ -67,8 +68,10 @@ int pipeline_configure(struct pipeline *p, const struct device_config *dc,
 	}
 
 	/* Air mouse: profile lpf_alpha when set, else the global config. */
-	alpha = p->active.has_lpf ? p->active.lpf_alpha : global_lpf;
+	alpha = p->active.has_lpf ? p->active.lpf_alpha : gcfg->lpf_alpha;
 	airmouse_init(&p->am, alpha, p->active.sensitivity);
+	airmouse_gate_cfg(&p->am, gcfg->accel_gate, gcfg->accel_gate_lo,
+			  gcfg->accel_gate_hi);
 	p->airmouse_on = dc->airmouse;
 	return 0;
 }
@@ -162,7 +165,9 @@ int pipeline_imu(struct pipeline *p, const struct evdev_frame *f,
 		a_out[1] = a_raw[1];
 		a_out[2] = a_raw[2];
 	}
-	airmouse_process(&p->am, g_out, filt, &dx, &dy);
+	/* The gate works on the RAW accelerometer: lo/hi are raw counts
+	 * (calibration scale would change their meaning). */
+	airmouse_process(&p->am, g_out, a_raw, filt, &dx, &dy);
 	if (dx || dy)
 		return uinput_move(mouse_fd, dx, dy) < 0 ? -1 : 0;
 	return 0;
