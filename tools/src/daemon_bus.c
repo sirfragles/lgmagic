@@ -81,7 +81,7 @@ static void remote_apply(struct daemon_remote *r, struct daemon_devices *dd)
 	daemon_config_calib_path(dd->config, &r->dc, r->identity, calib,
 				 sizeof(calib));
 	if (pipeline_configure(&r->pl, &r->dc, calib,
-			       dd->config->global->lpf_alpha,
+			       dd->config->global,
 			       r->kbd_uinput, err, sizeof(err)) < 0)
 		fprintf(stderr, "lgmagicd: %s: %s\n", r->identity, err);
 }

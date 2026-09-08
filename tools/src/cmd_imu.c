@@ -172,6 +172,8 @@ int cmd_imu(int argc, char **argv)
 		}
 	}
 	airmouse_init(&am, g_cfg->lpf_alpha, g_cfg->mouse_scale);
+	airmouse_gate_cfg(&am, g_cfg->accel_gate, g_cfg->accel_gate_lo,
+			  g_cfg->accel_gate_hi);
 
 	memset(&sa, 0, sizeof(sa));
 	sa.sa_handler = on_signal;
@@ -283,8 +285,11 @@ int cmd_imu(int argc, char **argv)
 			if (do_mouse) {
 				int dx, dy;
 
-				airmouse_process(&am, g_corr, filt_out,
-						 &dx, &dy);
+				/* Raw accel feeds the gate (thresholds are
+				 * raw counts). */
+				airmouse_process(&am, g_corr,
+					(double[3]){ accel[0], accel[1], accel[2] },
+					filt_out, &dx, &dy);
 				printf("dt=%.5fs | gyro_filt =[% .6g % .6g "
 				       "% .6g]\n", dt ? dt : 0.0, filt_out[0],
 				       filt_out[1], filt_out[2]);

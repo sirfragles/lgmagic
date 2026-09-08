@@ -19,6 +19,13 @@
  *                                          engine works on frame-to-frame
  *                                          deltas, so tests drive it with a
  *                                          baseline frame followed by motion)
+ *             --imu PATH --accel X,Y,Z [--gyro X,Y,Z ...]
+ *                                         ABS_X/Y/Z (accel) + ABS_RX/RY/RZ
+ *                                         per frame; --accel sets the accel
+ *                                         for all following --gyro frames
+ *                                         (default 0,0,0 = no accelerometer,
+ *                                         which disables the spring-back
+ *                                         gate in the engine)
  *   watch   read and print frames from an evdev node (e.g. the daemon's
  *           per-remote "lgmagicd keyboard <identity>" outputs).
  *
@@ -63,6 +70,7 @@ static void usage(FILE *out)
 	      "       fake_devices emit --kbd PATH --release NAME\n"
 	      "       fake_devices emit --kbd PATH --wheel N\n"
 	      "       fake_devices emit --imu PATH --gyro X,Y,Z [--gyro ...]\n"
+	      "       fake_devices emit --imu PATH --accel X,Y,Z [--gyro ...]\n"
 	      "       fake_devices watch PATH [--ms MS]\n", out);
 }
 
@@ -368,7 +376,8 @@ static int emit_wheel(const char *path, int clicks)
 	return 0;
 }
 
-static int emit_gyro(const char *path, int gx, int gy, int gz)
+static int emit_gyro(const char *path, int ax, int ay, int az,
+		     int gx, int gy, int gz)
 {
 	int fd = open(path, O_WRONLY);
 
@@ -377,7 +386,12 @@ static int emit_gyro(const char *path, int gx, int gy, int gz)
 			strerror(errno));
 		return 1;
 	}
-	if (emit_ev(fd, EV_ABS, ABS_RX, gx) < 0 ||
+	/* Accel first, then the gyro/POI values - one SYN_REPORT closes the
+	 * frame, so the reader sees both triplets together. */
+	if (emit_ev(fd, EV_ABS, ABS_X, ax) < 0 ||
+	    emit_ev(fd, EV_ABS, ABS_Y, ay) < 0 ||
+	    emit_ev(fd, EV_ABS, ABS_Z, az) < 0 ||
+	    emit_ev(fd, EV_ABS, ABS_RX, gx) < 0 ||
 	    emit_ev(fd, EV_ABS, ABS_RY, gy) < 0 ||
 	    emit_ev(fd, EV_ABS, ABS_RZ, gz) < 0 ||
 	    emit_ev(fd, EV_MSC, MSC_SERIAL, 1) < 0 ||
@@ -392,13 +406,13 @@ static int emit_gyro(const char *path, int gx, int gy, int gz)
 }
 
 /* Emit each gyro frame in order - one input frame per --gyro flag. */
-static int emit_gyro_frames(const char *path, int frames[][3], int n)
+static int emit_gyro_frames(const char *path, int frames[][6], int n)
 {
 	int i;
 
 	for (i = 0; i < n; i++)
-		if (emit_gyro(path, frames[i][0], frames[i][1],
-			      frames[i][2]) < 0)
+		if (emit_gyro(path, frames[i][0], frames[i][1], frames[i][2],
+			      frames[i][3], frames[i][4], frames[i][5]) < 0)
 			return 1;
 	return 0;
 }
@@ -410,7 +424,8 @@ static int cmd_emit(int argc, char **argv)
 	const char *kbd = NULL, *imu = NULL;
 	const char *key = NULL, *press = NULL, *release = NULL;
 	int wheel = 0, have_wheel = 0;
-	int frames[MAX_GYRO_FRAMES][3];
+	int accel[3] = { 0, 0, 0 };	/* --accel, applies to following --gyro */
+	int frames[MAX_GYRO_FRAMES][6];	/* accel[3] + gyro[3] per frame */
 	int n_frames = 0;
 	int i;
 
@@ -428,19 +443,30 @@ static int cmd_emit(int argc, char **argv)
 		else if (strcmp(argv[i], "--wheel") == 0 && i + 1 < argc) {
 			wheel = atoi(argv[++i]);
 			have_wheel = 1;
+		} else if (strcmp(argv[i], "--accel") == 0 && i + 1 < argc) {
+			if (sscanf(argv[++i], "%d,%d,%d", &accel[0],
+				   &accel[1], &accel[2]) != 3) {
+				fprintf(stderr, "fake_devices: --accel needs "
+					"X,Y,Z\n");
+				return 1;
+			}
 		} else if (strcmp(argv[i], "--gyro") == 0 && i + 1 < argc) {
 			if (n_frames >= MAX_GYRO_FRAMES) {
 				fprintf(stderr, "fake_devices: too many --gyro "
 					"frames\n");
 				return 1;
 			}
-			if (sscanf(argv[++i], "%d,%d,%d", &frames[n_frames][0],
-				   &frames[n_frames][1],
-				   &frames[n_frames][2]) != 3) {
+			if (sscanf(argv[++i], "%d,%d,%d",
+				   &frames[n_frames][3],
+				   &frames[n_frames][4],
+				   &frames[n_frames][5]) != 3) {
 				fprintf(stderr, "fake_devices: --gyro needs "
 					"X,Y,Z\n");
 				return 1;
 			}
+			frames[n_frames][0] = accel[0];
+			frames[n_frames][1] = accel[1];
+			frames[n_frames][2] = accel[2];
 			n_frames++;
 		} else {
 			usage(stderr);

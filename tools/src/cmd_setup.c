@@ -906,6 +906,8 @@ static void step_mouse_test(struct evdev_imu *dev, const struct calib *c,
 		return;
 	}
 	airmouse_init(&am, g_cfg->lpf_alpha, g_cfg->mouse_scale);
+	airmouse_gate_cfg(&am, g_cfg->accel_gate, g_cfg->accel_gate_lo,
+			  g_cfg->accel_gate_hi);
 	g_stop = 0;
 	printf("Move the remote - the pointer should follow. Ctrl+C ends the "
 	       "test.\n");
@@ -936,7 +938,9 @@ static void step_mouse_test(struct evdev_imu *dev, const struct calib *c,
 		calib_apply(c, (double[3]){ accel[0], accel[1], accel[2] },
 			    (double[3]){ gyro[0], gyro[1], gyro[2] },
 			    a_corr, g_corr);
-		airmouse_process(&am, g_corr, filt_out, &dx, &dy);
+		airmouse_process(&am, g_corr,
+				 (double[3]){ accel[0], accel[1], accel[2] },
+				 filt_out, &dx, &dy);
 		if (uinput_move(ufd, dx, dy) < 0)
 			fprintf(stderr, "lgmagic: uinput write failed\n");
 		printf("REL_X : %d REL_Y: %d\n", dx, dy);

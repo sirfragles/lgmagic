@@ -22,6 +22,9 @@ struct config {
 	double alpha;			/* kernel blob LPF (0.2) */
 	double mouse_k;			/* kernel airmouse sensitivity (0.5) */
 	double gyro_scale_default;	/* setup wizard default gyro scale (0.07) */
+	int accel_gate;			/* spring-back gate on (1) */
+	double accel_gate_lo;		/* gate opens above this accel dev (60.0) */
+	double accel_gate_hi;		/* latch refresh above this accel dev (400.0) */
 };
 
 /* Load the effective configuration (see precedence above).

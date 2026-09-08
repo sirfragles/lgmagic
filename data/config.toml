@@ -19,3 +19,15 @@ madgwick_beta = 0.1
 alpha = 0.2
 mouse_k = 0.5
 gyro_scale_default = 0.07
+
+# Spring-back gate: the remote's pointer output springs back to its
+# rest point after motion stops (firmware recentering).  The raw
+# accelerometer discriminates real motion (a large deviation) from the
+# spring (gravity +- noise at rest): the gate opens while dev > lo and
+# closes, ABSORBING the deltas, when dev stays below lo/2 for a few
+# frames.  Thresholds are in raw accelerometer counts.  accel_gate =
+# false disables the gate entirely (kill-switch); an accelerometer that
+# never reports disables it automatically.
+accel_gate = true
+accel_gate_lo = 60.0
+accel_gate_hi = 400.0

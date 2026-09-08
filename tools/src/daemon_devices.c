@@ -272,7 +272,7 @@ static int remote_open(struct daemon_remote *r, const char *identity,
 	daemon_config_calib_path(dd->config, &r->dc, identity, calib_path,
 				 sizeof(calib_path));
 	if (pipeline_configure(&r->pl, &r->dc, calib_path,
-			       dd->config->global->lpf_alpha,
+			       dd->config->global,
 			       r->kbd_uinput, err, sizeof(err)) < 0)
 		log_info("calibration for %s: %s (airmouse without "
 			 "calibration)", identity, err);
@@ -498,6 +498,13 @@ static int handle_imu(struct daemon_remote *r, struct daemon_devices *dd)
 		if (pipeline_imu(&r->pl, &f, r->mouse_uinput) < 0)
 			log_info("uinput write for %s (mouse) failed: %s",
 				 r->identity, strerror(errno));
+		if (r->pl.airmouse_on &&
+		    r->pl.gate_logged != r->pl.am.gate_open) {
+			log_debug(dd, "IMU %s: accel gate %s", r->identity,
+				  r->pl.am.gate_open ?
+				  "open" : "closed (absorbing spring-back)");
+			r->pl.gate_logged = r->pl.am.gate_open;
+		}
 		return 1;
 	}
 	if (g_stop)
@@ -583,8 +590,8 @@ int daemon_devices_reload(struct daemon_devices *dd, char *err, size_t errsz)
 		}
 		daemon_config_calib_path(dd->config, &ndc, r->identity,
 					 calib_path, sizeof(calib_path));
-		if (pipeline_configure(&r->pl, &ndc, calib_path,
-				       newg->lpf_alpha, r->kbd_uinput,
+		if (pipeline_configure(&r->pl, &ndc, calib_path, newg,
+				       r->kbd_uinput,
 				       err, errsz) < 0)
 			log_info("calibration reload for %s: %s", r->identity,
 				 err);
