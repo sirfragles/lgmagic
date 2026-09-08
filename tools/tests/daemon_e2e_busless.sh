@@ -345,13 +345,38 @@ done
 [ "$(grep -c "remote unknown: keyboard" "$TMP/daemon.log")" -ge 2 ] || \
 	fail "reconnect: daemon did not re-add the remote: $(cat "$TMP/daemon.log")"
 
-# The re-added remote re-applies devices.d: KEY_UP still maps.
+# The re-added remote re-applies devices.d: KEY_UP still maps.  The
+# re-add recreates the daemon's uinput pair, whose event numbers are not
+# guaranteed to survive (a re-add races udev's node removal) - re-resolve
+# the current keyboard node instead of using the setup-time path.
+OUTK=$(find_node_prefix "lgmagicd keyboard")
+[ -n "$OUTK" ] || fail "reconnect: no 'lgmagicd keyboard' node after re-add"
 ( "$FAKE" watch "$OUTK" --ms 1200 > "$TMP/w6.out" 2>&1 ) &
 sleep 0.1
 "$FAKE" emit --kbd "$KBD2" --key KEY_UP
 sleep 1.3
 grep -q "KEY KEY_VOLUMEUP 1" "$TMP/w6.out" || fail "reconnect: mapped key after re-add, got: $(cat "$TMP/w6.out")"
 echo "OK reconnect"
+
+# ------------------------------------------------------------------ #
+# 6b. Parked POI: a constant nonzero gyro across frames must not move #
+#     the mouse (the drift bug: after handling, the remote parks its  #
+#     pointer output at hundreds of counts for tens of seconds)       #
+# ------------------------------------------------------------------ #
+
+# the re-add reset the engine: the first frame is the baseline.  As in
+# section 6, re-resolve the mouse node - the pair's event numbers are
+# not guaranteed to survive the re-add.
+OUTM=$(find_node_prefix "lgmagicd mouse")
+[ -n "$OUTM" ] || fail "parked gyro: no 'lgmagicd mouse' node after re-add"
+( "$FAKE" watch "$OUTM" --ms 800 > "$TMP/w6b.out" 2>&1 ) &
+sleep 0.1
+"$FAKE" emit --imu "$IMU2" --gyro 5,483,1954
+sleep 0.2
+"$FAKE" emit --imu "$IMU2" --gyro 5,483,1954
+sleep 1.0
+[ -s "$TMP/w6b.out" ] && fail "parked gyro: unexpected movement: $(cat "$TMP/w6b.out")"
+echo "OK parked gyro"
 
 # ------------------------------------------------------------------ #
 # 7. Grab: raw events hidden while the daemon lives, visible after    #
