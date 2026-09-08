@@ -457,7 +457,10 @@ jobs:
         run: |
           export DEBIAN_FRONTEND=noninteractive
           apt-get update -q
-          apt-get install -qy dkms gcc make libsystemd-dev pkg-config
+          apt-get install -qy dkms gcc make libsystemd-dev pkg-config libc6-dev
+          # libc6-dev is explicit: the direct `make -C tools` below needs
+          # the libc headers, and newer images (ubuntu:26.04) no longer
+          # pull it in transitively through the packages above.
           # Kernel package names differ: Debian ships linux-image-amd64,
           # Ubuntu linux-image-generic (linux-image-amd64 does not exist
           # there - "no installation candidate").
